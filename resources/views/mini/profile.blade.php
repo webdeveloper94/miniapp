@@ -7,8 +7,8 @@
   <div class="card mini-card p-3 mb-3 d-flex align-items-center">
     <div class="avatar me-3"><i class="bi bi-person"></i></div>
     <div>
-      <div class="fw-semibold">Foydalanuvchi</div>
-      <small class="text-secondary">ID: 000000</small>
+      <div class="fw-semibold">{{ session('telegram_user.first_name') }} {{ session('telegram_user.last_name') }}</div>
+      <small class="text-secondary">@{{ session('telegram_user.username') }} • ID: {{ session('telegram_user.id') }}</small>
     </div>
   </div>
 
@@ -20,29 +20,21 @@
     <form method="POST" action="{{ route('mini.profile.language') }}" class="d-flex gap-2">
       @csrf
       <select class="form-select mini-input" name="language" style="max-width:200px">
-        <option value="uz">O‘zbekcha</option>
-        <option value="ru">Русский</option>
-        <option value="en">English</option>
+        <option value="uz" {{ session('telegram_user.language_code') == 'uz' ? 'selected' : '' }}>O'zbekcha</option>
+        <option value="ru" {{ session('telegram_user.language_code') == 'ru' ? 'selected' : '' }}>Русский</option>
+        <option value="en" {{ session('telegram_user.language_code') == 'en' ? 'selected' : '' }}>English</option>
       </select>
       <button class="btn btn-mini" type="submit"><i class="bi bi-save"></i> Saqlash</button>
     </form>
   </div>
 
   <div class="card mini-card p-3 mb-3">
-    <h6 class="mb-2">Login va parol</h6>
+    <h6 class="mb-2">Telegram username</h6>
     <form method="POST" action="{{ route('mini.profile.credentials') }}" class="row g-2">
       @csrf
       <div class="col-12">
-        <label class="form-label">Login (username)</label>
-        <input class="form-control mini-input" type="text" name="username" value="{{ old('username', auth()->user()->username ?? '') }}" required>
-      </div>
-      <div class="col-12">
-        <label class="form-label">Yangi parol (ixtiyoriy)</label>
-        <input class="form-control mini-input" type="password" name="password" placeholder="******">
-      </div>
-      <div class="col-12">
-        <label class="form-label">Parol tasdiqi</label>
-        <input class="form-control mini-input" type="password" name="password_confirmation" placeholder="******">
+        <label class="form-label">Username</label>
+        <input class="form-control mini-input" type="text" name="username" value="{{ old('username', session('telegram_user.username')) }}" required>
       </div>
       <div class="col-12">
         <button class="btn btn-mini w-100" type="submit"><i class="bi bi-check2"></i> Yangilash</button>

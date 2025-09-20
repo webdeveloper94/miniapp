@@ -30,6 +30,17 @@
 </head>
 <body>
   <div class="container-sm" style="max-width:480px">
+    @if(session('telegram_user'))
+    <div class="d-flex align-items-center p-2 mb-2" style="background:var(--mini-accent-2);border-radius:8px">
+      <div class="avatar me-2">
+        <i class="bi bi-person"></i>
+      </div>
+      <div>
+        <div class="fw-semibold">{{ session('telegram_user.first_name') }} {{ session('telegram_user.last_name') }}</div>
+        <small class="text-muted">@{{ session('telegram_user.username') }}</small>
+      </div>
+    </div>
+    @endif
     @yield('content')
   </div>
 

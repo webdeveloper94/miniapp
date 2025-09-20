@@ -9,7 +9,7 @@ Route::post('/login', [AuthController::class, 'login'])->name('login.post');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 Route::get('/', function () {
-    return view('welcome');
+    return redirect()->route('mini.home');
 });
 
 Route::middleware(['web', 'admin'])->prefix('admin')->name('admin.')->group(function () {
@@ -40,4 +40,14 @@ Route::prefix('mini')->name('mini.')->group(function () {
     Route::post('/freight', [UserAppController::class, 'freightEstimate'])->name('freight');
     Route::post('/profile/language', [UserAppController::class, 'updateLanguage'])->name('profile.language');
     Route::post('/profile/credentials', [UserAppController::class, 'updateCredentials'])->name('profile.credentials');
+    
+    // Cart routes
+    Route::post('/cart/add', [UserAppController::class, 'addToCart'])->name('cart.add');
+    Route::post('/cart/remove', [UserAppController::class, 'removeFromCart'])->name('cart.remove');
+    Route::post('/cart/update-quantity', [UserAppController::class, 'updateCartQuantity'])->name('cart.update-quantity');
+    Route::post('/cart/view-product', [UserAppController::class, 'viewProductFromCart'])->name('cart.view-product');
+    
+    // Order routes
+    Route::get('/checkout', [UserAppController::class, 'checkout'])->name('checkout');
+    Route::post('/order/create', [UserAppController::class, 'createOrder'])->name('order.create');
 });

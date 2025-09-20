@@ -16,6 +16,10 @@ class Order extends Model
         'status',
         'tracking_number',
         'total_price',
+        'first_name',
+        'last_name',
+        'phone',
+        'address',
     ];
 
     public function user()

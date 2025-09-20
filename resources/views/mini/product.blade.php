@@ -37,10 +37,10 @@
   </div>
   @endif
 
-  <div class="d-grid gap-2">
-    <button class="btn btn-mini"><i class="bi bi-cart-plus"></i> Savatga qo‘shish</button>
-    <button class="btn btn-mini"><i class="bi bi-lightning-charge"></i> Buyurtma berish</button>
-  </div>
+      <div class="d-grid gap-2">
+        <button class="btn btn-mini" onclick="addToCart()"><i class="bi bi-cart-plus"></i> Savatga qo'shish</button>
+        <button class="btn btn-mini" onclick="checkout()"><i class="bi bi-lightning-charge"></i> Buyurtma berish</button>
+      </div>
 </div>
 
 <script>
@@ -154,6 +154,69 @@
       el.classList.add('active');
       selections[group] = el.getAttribute('data-value');
     });
+    
+    // Savatdan kelgan mahsulot uchun avtomatik tanlash
+    setTimeout(() => {
+      skuProps.forEach((p, pIdx) => {
+        const group = (p.name || p.prop || 'Option');
+        const values = p.values || p.value || p.items || [];
+        if (values.length === 1) {
+          // Agar faqat bitta variant bo'lsa, uni avtomatik tanlash
+          const chip = variantsBody.querySelector(`.chip-select[data-group="${group}"][data-value="${values[0]}"]`);
+          if (chip) {
+            chip.classList.add('active');
+            selections[group] = values[0];
+          }
+        }
+      });
+    }, 100);
+  }
+
+  // Savatga qo'shish funksiyasi
+  function addToCart() {
+    const productId = '{{ $offerId }}' || 'unknown';
+    const title = product.subject || product.title || 'Mahsulot';
+    const price = product.price || product.minPrice || 0;
+    const imageUrl = (product.productImage && product.productImage.images && product.productImage.images[0]) || '';
+    const quantity = 1; // Default miqdor
+    
+    // Tanlangan variantlarni olish
+    const selectedVariants = {};
+    document.querySelectorAll('.chip-select.active').forEach(chip => {
+      const group = chip.getAttribute('data-group');
+      const value = chip.getAttribute('data-value');
+      if (group && value) {
+        selectedVariants[group] = value;
+      }
+    });
+
+    const formData = new FormData();
+    formData.append('_token', '{{ csrf_token() }}');
+    formData.append('product_id', productId);
+    formData.append('title', title);
+    formData.append('price', price);
+    formData.append('image_url', imageUrl);
+    formData.append('quantity', quantity);
+    formData.append('selected_variants', JSON.stringify(selectedVariants));
+
+    fetch('{{ route("mini.cart.add") }}', {
+      method: 'POST',
+      body: formData
+    })
+    .then(response => response.text())
+    .then(() => {
+      // Muvaffaqiyatli qo'shildi
+      alert('Mahsulot savatga qo\'shildi!');
+    })
+    .catch(error => {
+      console.error('Xato:', error);
+      alert('Xato yuz berdi, qayta urinib ko\'ring');
+    });
+  }
+
+  // Buyurtma berish funksiyasi
+  function checkout() {
+    window.location.href = '{{ route("mini.checkout") }}';
   }
 </script>
 @endsection
