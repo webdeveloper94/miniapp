@@ -71,9 +71,9 @@
         @endforeach
       @endif
       
-      <div class="d-flex justify-content-between align-items-center">
+      <div class="d-flex justify-content-between align-items-center mb-2">
         <div class="fw-bold text-primary">
-          Jami: {{ number_format($order->total_amount, 0, '', ' ') }} so'm
+          Jami: {{ number_format($order->total_price, 0, '', ' ') }} so'm
         </div>
         @if($order->tracking_number)
           <small class="text-secondary">
@@ -82,6 +82,56 @@
           </small>
         @endif
       </div>
+      
+      @if($order->status === 'pending')
+        @php
+          $payment = $order->payment;
+          $hasPayment = $payment && $payment->receipt_url;
+        @endphp
+        
+        @if($hasPayment)
+          <div class="d-grid gap-2">
+            <button class="btn btn-warning" disabled>
+              <i class="bi bi-clock me-1"></i> Tasdiqlanishi kutilmoqda
+            </button>
+          </div>
+        @else
+          <div class="d-grid gap-2">
+            <button class="btn btn-mini" data-bs-toggle="modal" data-bs-target="#paymentModal{{ $order->id }}">
+              <i class="bi bi-credit-card me-1"></i> To'lov qilish
+            </button>
+          </div>
+        @endif
+      @elseif($order->status === 'accepted')
+        <div class="d-grid gap-2">
+          <button class="btn btn-success" disabled>
+            <i class="bi bi-check-circle me-1"></i> Tasdiqlangan
+          </button>
+        </div>
+      @elseif($order->status === 'rejected')
+        <div class="d-grid gap-2">
+          <button class="btn btn-danger" disabled>
+            <i class="bi bi-x-circle me-1"></i> Rad etilgan
+          </button>
+          @if($order->payment && $order->payment->note)
+            <small class="text-danger mt-1">
+              <i class="bi bi-info-circle me-1"></i> Sabab: {{ $order->payment->note }}
+            </small>
+          @endif
+        </div>
+      @elseif($order->status === 'shipping')
+        <div class="d-grid gap-2">
+          <button class="btn btn-info" disabled>
+            <i class="bi bi-truck me-1"></i> Yetkazilmoqda
+          </button>
+        </div>
+      @elseif($order->status === 'delivered')
+        <div class="d-grid gap-2">
+          <button class="btn btn-success" disabled>
+            <i class="bi bi-check-circle-fill me-1"></i> Yetkazib berildi
+          </button>
+        </div>
+      @endif
     </div>
   @empty
     <div class="card mini-card p-4 text-center">
@@ -94,10 +144,130 @@
   
   @if($orders->hasPages())
     <div class="d-flex justify-content-center mt-3">
-      {{ $orders->links() }}
+      <nav aria-label="Buyurtmalar pagination">
+        <ul class="pagination pagination-sm" style="--bs-pagination-color: var(--mini-primary); --bs-pagination-bg: white; --bs-pagination-border-color: #dee2e6; --bs-pagination-hover-color: var(--mini-primary); --bs-pagination-hover-bg: #e9ecef; --bs-pagination-hover-border-color: #dee2e6; --bs-pagination-focus-color: var(--mini-primary); --bs-pagination-focus-bg: #e9ecef; --bs-pagination-focus-box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25); --bs-pagination-active-color: #fff; --bs-pagination-active-bg: var(--mini-primary); --bs-pagination-active-border-color: var(--mini-primary); --bs-pagination-disabled-color: #6c757d; --bs-pagination-disabled-bg: #fff; --bs-pagination-disabled-border-color: #dee2e6;">
+          @if($orders->onFirstPage())
+            <li class="page-item disabled">
+              <span class="page-link">
+                <i class="bi bi-chevron-left"></i>
+              </span>
+            </li>
+          @else
+            <li class="page-item">
+              <a class="page-link" href="{{ $orders->previousPageUrl() }}">
+                <i class="bi bi-chevron-left"></i>
+              </a>
+            </li>
+          @endif
+
+          @foreach($orders->getUrlRange(1, $orders->lastPage()) as $page => $url)
+            @if($page == $orders->currentPage())
+              <li class="page-item active">
+                <span class="page-link">{{ $page }}</span>
+              </li>
+            @else
+              <li class="page-item">
+                <a class="page-link" href="{{ $url }}">{{ $page }}</a>
+              </li>
+            @endif
+          @endforeach
+
+          @if($orders->hasMorePages())
+            <li class="page-item">
+              <a class="page-link" href="{{ $orders->nextPageUrl() }}">
+                <i class="bi bi-chevron-right"></i>
+              </a>
+            </li>
+          @else
+            <li class="page-item disabled">
+              <span class="page-link">
+                <i class="bi bi-chevron-right"></i>
+              </span>
+            </li>
+          @endif
+        </ul>
+      </nav>
+    </div>
+    
+    <div class="text-center mt-2">
+      <small class="text-muted">
+        {{ $orders->firstItem() }} dan {{ $orders->lastItem() }} gacha, jami {{ $orders->total() }} ta
+      </small>
     </div>
   @endif
 </div>
+
+<!-- Payment Modals -->
+@foreach($orders as $order)
+  @if($order->status === 'pending')
+    <div class="modal fade" id="paymentModal{{ $order->id }}" tabindex="-1" aria-labelledby="paymentModalLabel{{ $order->id }}" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="paymentModalLabel{{ $order->id }}">To'lov qilish</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <form method="POST" action="{{ route('mini.payment.submit') }}" enctype="multipart/form-data">
+            @csrf
+            <input type="hidden" name="order_id" value="{{ $order->id }}">
+            <div class="modal-body">
+              <!-- Admin karta ma'lumotlari -->
+              <div class="alert alert-info mb-3">
+                <h6 class="mb-2"><i class="bi bi-credit-card me-1"></i> Admin karta ma'lumotlari:</h6>
+                <div class="fw-bold">Karta raqami: {{ $adminSettings['admin_card_number'] ?? '8600 1234 5678 9012' }}</div>
+                <div class="fw-bold">Karta egasi: {{ $adminSettings['admin_card_owner'] ?? 'Admin User' }}</div>
+                <div class="fw-bold">Bank: {{ $adminSettings['admin_bank'] ?? 'Xalq Banki' }}</div>
+              </div>
+              
+              <!-- Qisqa matn -->
+              <div class="alert alert-warning mb-3">
+                <small>
+                  <i class="bi bi-info-circle me-1"></i>
+                  <strong>Diqqat:</strong> To'lov admin tomonidan tasdiqlanadi, shu sababli biroz vaqt olish mumkin. 
+                  To'lov chekini yuklab, admin bilan bog'laning.
+                </small>
+              </div>
+              
+              <div class="mb-3">
+                <label class="form-label">Sizning karta raqamingiz</label>
+                <input type="text" name="card_number" class="form-control" placeholder="8600 1234 5678 9012" required>
+                <small class="text-muted">Qaysi kartadan to'lov qilganingizni kiriting</small>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">To'lov summasi</label>
+                <input type="number" name="amount" class="form-control" value="{{ $order->total_price }}" readonly>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">To'lov cheki (rasm)</label>
+                <input type="file" name="receipt_image" class="form-control" accept="image/*" required>
+                <small class="text-muted">To'lov chekining rasmini yuklang</small>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Qo'shimcha izoh</label>
+                <textarea name="note" class="form-control" rows="2" placeholder="To'lov haqida qo'shimcha ma'lumot..."></textarea>
+              </div>
+              
+              <!-- Admin aloqa -->
+              <div class="alert alert-light border mb-3">
+                <div class="d-flex align-items-center">
+                  <i class="bi bi-telegram me-2 text-primary"></i>
+                  <div>
+                    <small class="text-muted">Savollar uchun admin bilan bog'laning:</small>
+                    <div class="fw-bold">{{ $adminSettings['admin_telegram'] ?? '@admin_username' }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bekor qilish</button>
+              <button type="submit" class="btn btn-mini">To'lovni yuborish</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  @endif
+@endforeach
 @endsection
 
 

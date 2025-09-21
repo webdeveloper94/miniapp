@@ -32,22 +32,34 @@ class Handler extends ExceptionHandler
      * Render an exception into an HTTP response.
      */
     public function render($request, Throwable $e)
-    {
-        // Phiki xatolarini bostirish
-        if ($e instanceof \Phiki\TextMate\FailedToInitializePatternSearchException || 
-            $e instanceof \Phiki\TextMate\FailedToSetSearchPositionException) {
-            return response('Server Error', 500);
-        }
+{
+    $targetErrors = [
+        \Phiki\TextMate\FailedToInitializePatternSearchException::class,
+        \Phiki\TextMate\FailedToSetSearchPositionException::class,
+    ];
 
-        // Boshqa ViewException larni ham bostirish
-        if ($e instanceof \Illuminate\View\ViewException) {
-            $previous = $e->getPrevious();
-            if ($previous instanceof \Phiki\TextMate\FailedToInitializePatternSearchException || 
-                $previous instanceof \Phiki\TextMate\FailedToSetSearchPositionException) {
-                return response('Server Error', 500);
-            }
-        }
+    // Agar bu ViewException bo‘lsa, asl sababini tekshiramiz
+    $exception = $e instanceof \Illuminate\View\ViewException
+        ? $e->getPrevious() ?? $e
+        : $e;
 
-        return parent::render($request, $e);
+    if (in_array(get_class($exception), $targetErrors)) {
+        // Asl xatoni foydalanuvchiga ko‘rsatamiz
+        return response()->json([
+            'status'  => 'error',
+            'message' => $exception->getMessage(),
+        ], 500);
     }
+
+    // Agar ma’lumotlar bazasi xatosi bo‘lsa
+    if ($exception instanceof \Illuminate\Database\QueryException) {
+        return response()->json([
+            'status'  => 'error',
+            'message' => $exception->getMessage(), // yoki: 'Xatolik: ' . $exception->errorInfo[2]
+        ], 500);
+    }
+
+    return parent::render($request, $e);
+}
+
 }

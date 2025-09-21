@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Payment;
 use Illuminate\Http\Request;
 use App\Services\DajiSaasClient;
@@ -103,11 +104,14 @@ class UserAppController extends Controller
         $userId = $telegramUser['id'] ?? 1;
         
         $orders = Order::where('user_id', $userId)
-            ->with('orderItems')
+            ->with(['orderItems', 'payment'])
             ->latest('id')
             ->paginate(10);
+
+        // Admin ma'lumotlarini olish
+        $adminSettings = \App\Models\AdminSetting::pluck('value', 'key');
             
-        return view('mini.orders', compact('orders'));
+        return view('mini.orders', compact('orders', 'adminSettings'));
     }
 
     public function cart()
@@ -255,66 +259,95 @@ class UserAppController extends Controller
 
     public function createOrder(Request $request)
     {
-        $this->ensureFakeTelegramUser();
-        
-        $data = $request->validate([
-            'product_id' => 'required|string',
-            'title' => 'required|string',
-            'price' => 'required|numeric',
-            'quantity' => 'required|integer|min:1',
-            'selected_variants' => 'nullable|string',
-            'notes' => 'nullable|string|max:500',
-            'first_name' => 'required|string|max:100',
-            'last_name' => 'required|string|max:100',
-            'phone' => 'required|string|max:20',
-            'address' => 'required|string|max:500',
-        ]);
+        try {
+            $this->ensureFakeTelegramUser();
+            
+            $data = $request->validate([
+                'product_id' => 'required|string',
+                'title' => 'required|string',
+                'price' => 'required|numeric',
+                'quantity' => 'required|integer|min:1',
+                'selected_variants' => 'nullable|string',
+                'notes' => 'nullable|string|max:500',
+                'first_name' => 'required|string|max:100',
+                'last_name' => 'required|string|max:100',
+                'phone' => 'required|string|max:20',
+                'address' => 'required|string|max:500',
+            ]);
 
-        // Telegram user ID ni olish
-        $telegramUser = session('telegram_user');
-        $userId = $telegramUser['id'] ?? 1; // Fallback user ID
+            // Telegram user ID ni olish
+            $telegramUser = session('telegram_user');
+            $userId = $telegramUser['id'] ?? 1; // Fallback user ID
 
-        // Buyurtma yaratish
-        $order = Order::create([
-            'user_id' => $userId,
-            'product_url' => session('mini_product_link', ''),
-            'source_platform' => '1688',
-            'status' => 'pending',
-            'total_price' => $data['price'] * $data['quantity'],
-            'tracking_number' => null,
-            'first_name' => $data['first_name'],
-            'last_name' => $data['last_name'],
-            'phone' => $data['phone'],
-            'address' => $data['address'],
-        ]);
+            // Buyurtma yaratish
+            $order = Order::create([
+                'user_id' => $userId,
+                'product_url' => session('mini_product_link', ''),
+                'source_platform' => '1688',
+                'status' => 'pending',
+                'total_price' => $data['price'] * $data['quantity'],
+                'tracking_number' => null,
+                'first_name' => $data['first_name'],
+                'last_name' => $data['last_name'],
+                'phone' => $data['phone'],
+                'address' => $data['address'],
+            ]);
 
-        // Order item yaratish
-        OrderItem::create([
-            'order_id' => $order->id,
-            'title' => $data['title'],
-            'quantity' => $data['quantity'],
-            'unit_price' => $data['price'],
-            'subtotal' => $data['price'] * $data['quantity'],
-            'image_url' => session('mini_product.data.productImage.images.0', ''),
-            'product_params' => $data['selected_variants'],
-        ]);
+            // Rasm URL ni olish
+            $product = session('mini_product');
+            $imageUrl = '';
+            if (isset($product['data']['productImage']['images'][0])) {
+                $imageUrl = $product['data']['productImage']['images'][0];
+            } elseif (isset($product['productImage']['images'][0])) {
+                $imageUrl = $product['productImage']['images'][0];
+            }
 
-        // Payment yaratish
-        Payment::create([
-            'user_id' => $userId,
-            'order_id' => $order->id,
-            'amount' => $data['price'] * $data['quantity'],
-            'currency' => 'UZS',
-            'status' => 'pending',
-            'payment_method' => 'card',
-            'transaction_id' => 'TRX' . \Illuminate\Support\Str::random(10),
-            'receipt_url' => null,
-        ]);
+            // Order item yaratish
+            OrderItem::create([
+                'order_id' => $order->id,
+                'title' => $data['title'],
+                'quantity' => $data['quantity'],
+                'unit_price' => $data['price'],
+                'subtotal' => $data['price'] * $data['quantity'],
+                'image_url' => $imageUrl,
+                'product_params' => $data['selected_variants'],
+            ]);
 
-        // Session tozalash
-        session()->forget(['mini_product', 'mini_product_link', 'mini_offerId']);
+            // Payment yaratish
+            try {
+                $payment = Payment::create([
+                    'user_id' => $userId,
+                    'order_id' => $order->id,
+                    'amount' => $data['price'] * $data['quantity'],
+                    'currency' => 'UZS',
+                    'status' => 'pending',
+                    'payment_method' => 'card',
+                    'transaction_id' => 'TRX' . \Illuminate\Support\Str::random(10),
+                    'receipt_url' => null,
+                ]);
+                
+                \Log::info('Payment created successfully', [
+                    'payment_id' => $payment->id,
+                    'order_id' => $order->id,
+                    'amount' => $data['price'] * $data['quantity']
+                ]);
+            } catch (\Exception $e) {
+                \Log::error('Payment creation failed', [
+                    'error' => $e->getMessage(),
+                    'order_id' => $order->id
+                ]);
+                throw $e;
+            }
 
-        return redirect()->route('mini.orders')->with('status', 'Buyurtma muvaffaqiyatli yaratildi!');
+            // Session tozalash
+            session()->forget(['mini_product', 'mini_product_link', 'mini_offerId']);
+
+            return redirect()->route('mini.orders')->with('status', 'Buyurtma muvaffaqiyatli yaratildi!');
+            
+        } catch (\Exception $e) {
+            \Log::error('Order creation error: ' . $e->getMessage());
+            return back()->withErrors(['error' => 'Buyurtma yaratishda xato: ' . $e->getMessage()]);
+        }
     }
 
     public function history()
@@ -376,6 +409,54 @@ class UserAppController extends Controller
         session(['telegram_user' => $telegramUser]);
         
         return back()->with('status', 'Username yangilandi');
+    }
+
+    public function submitPayment(Request $request)
+    {
+        try {
+            $this->ensureFakeTelegramUser();
+            
+            $data = $request->validate([
+                'order_id' => 'required|exists:orders,id',
+                'card_number' => 'required|string|max:20',
+                'amount' => 'required|numeric|min:1',
+                'receipt_image' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+                'note' => 'nullable|string|max:500',
+            ]);
+
+            $telegramUser = session('telegram_user');
+            $userId = $telegramUser['id'] ?? 1;
+
+            // Rasmni saqlash
+            $receiptPath = $request->file('receipt_image')->store('receipts', 'public');
+
+            // Yangi Payment yaratish
+            $payment = Payment::create([
+                'user_id' => $userId,
+                'order_id' => $data['order_id'],
+                'amount' => $data['amount'],
+                'currency' => 'UZS',
+                'status' => 'pending',
+                'payment_method' => 'card',
+                'transaction_id' => 'TRX' . \Illuminate\Support\Str::random(10),
+                'receipt_url' => $receiptPath,
+                'note' => $data['note'],
+                'card_number' => $data['card_number'],
+            ]);
+            
+            \Log::info('Payment created successfully', [
+                'payment_id' => $payment->id,
+                'order_id' => $data['order_id'],
+                'amount' => $data['amount'],
+                'receipt_url' => $receiptPath
+            ]);
+
+            return redirect()->route('mini.orders')->with('status', 'To\'lov muvaffaqiyatli yuborildi! Admin tasdiqlashini kuting.');
+            
+        } catch (\Exception $e) {
+            \Log::error('Payment submission error: ' . $e->getMessage());
+            return back()->withErrors(['error' => 'To\'lov yuborishda xato: ' . $e->getMessage()]);
+        }
     }
 }
 

@@ -17,6 +17,10 @@ class Payment extends Model
         'status',
         'receipt_path',
         'note',
+        'payment_method',
+        'transaction_id',
+        'receipt_url',
+        'card_number',
     ];
 
     public function user()

@@ -50,4 +50,6 @@ Route::prefix('mini')->name('mini.')->group(function () {
     // Order routes
     Route::get('/checkout', [UserAppController::class, 'checkout'])->name('checkout');
     Route::post('/order/create', [UserAppController::class, 'createOrder'])->name('order.create');
+    // Payment routes
+    Route::post('/payment/submit', [UserAppController::class, 'submitPayment'])->name('payment.submit');
 });

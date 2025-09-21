@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\User;
+use App\Models\AdminSetting;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -44,6 +45,12 @@ class DatabaseSeeder extends Seeder
             'language' => 'uz',
             'service_fee_percent' => 5.00,
         ]);
+
+        // Seed admin payment settings
+        AdminSetting::firstOrCreate(['key' => 'admin_card_number'], ['value' => '8600 1234 5678 9012']);
+        AdminSetting::firstOrCreate(['key' => 'admin_card_owner'], ['value' => 'Admin User']);
+        AdminSetting::firstOrCreate(['key' => 'admin_bank'], ['value' => 'Xalq Banki']);
+        AdminSetting::firstOrCreate(['key' => 'admin_telegram'], ['value' => '@admin_username']);
 
         // Create a sample order with one item and one payment
         $user = User::where('username', 'admin')->first();
