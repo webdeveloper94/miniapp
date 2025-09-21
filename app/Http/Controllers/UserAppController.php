@@ -55,7 +55,10 @@ class UserAppController extends Controller
         $link = $data['link'];
         // Detect platform and fetch accordingly
         $offerIdForSession = null;
-        if (preg_match('~(1688\.com|offer/)~i', $link)) {
+        $isTaobao = preg_match('~(taobao\.com|tmall\.com|item\.taobao|detail\.tmall)~i', $link);
+        $is1688 = preg_match('~(1688\.com|offer/)~i', $link);
+        
+        if ($is1688) {
             // Extract offerId from 1688 mobile URL
             preg_match('~(offerId|item_id|object_id)=(\d+)~', $link, $m);
             $offerId = $m[2] ?? null;
@@ -77,9 +80,14 @@ class UserAppController extends Controller
                 // Fallback: some 1688 short/mobile links may require shortUrl endpoint
                 $product = $api->alibabaProductDetailByShortUrl($link);
             }
+        } elseif ($isTaobao) {
+            // Taobao is not supported by DajiSaas API
+            return back()->withErrors(['api' => 'Taobao mahsulotlari hozircha qo\'llab-quvvatlanmaydi. DajiSaas API da Taobao uchun ruxsat yo\'q. Iltimos, 1688.com linklarini ishlating.']);
         } else {
-            $product = $api->taobaoProductDetail($link);
+            return back()->withErrors(['api' => 'Qo\'llab-quvvatlanmaydigan link. Faqat 1688.com linklarini kiriting.']);
         }
+        
+        // Check for any remaining errors
         if (isset($product['_error'])) {
             return back()->withErrors(['api' => 'API xatosi: '.$product['status'].' '.$product['endpoint']]);
         }

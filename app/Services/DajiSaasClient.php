@@ -19,7 +19,218 @@ class DajiSaasClient
 
     public function taobaoProductDetail(string $url): array
     {
-        $endpoint = '/taobao/product/detail'; // supports short link per docs
+        // Try different possible endpoints for Taobao
+        $endpoints = [
+            '/taobao/product/detail',
+            '/taobao/product/info',
+            '/taobao/product/getDetail',
+            '/taobao/item/detail',
+            '/taobao/item/info'
+        ];
+        
+        foreach ($endpoints as $endpoint) {
+            $res = Http::timeout(config('dajisaas.timeout'))
+                ->connectTimeout(config('dajisaas.connect_timeout'))
+                ->withOptions(['verify' => (bool) config('dajisaas.verify_ssl')])
+                ->asJson()->post($this->baseUrl . $endpoint, [
+                'appKey' => $this->appKey,
+                'appSecret' => $this->appSecret,
+                'url' => $url,
+            ]);
+            
+            if ($res->successful()) {
+                $json = $res->json();
+                return $json['data'] ?? $json ?? [];
+            }
+            
+            // If not 404, return the error
+            if ($res->status() !== 404) {
+                return [
+                    '_error' => true,
+                    'status' => $res->status(),
+                    'body' => $res->body(),
+                    'endpoint' => $endpoint,
+                ];
+            }
+        }
+        
+        // All endpoints returned 404
+        return [
+            '_error' => true,
+            'status' => 404,
+            'body' => 'All Taobao endpoints returned 404',
+            'endpoint' => 'multiple',
+        ];
+    }
+
+    public function taobaoProductDetailByItemId(string $itemId): array
+    {
+        // Try different possible endpoints for Taobao
+        $endpoints = [
+            '/taobao/product/get',
+            '/taobao/product/detail',
+            '/taobao/item/detail',
+            '/taobao/product/info'
+        ];
+        
+        foreach ($endpoints as $endpoint) {
+            // Try GET request first
+            $res = Http::timeout(config('dajisaas.timeout'))
+                ->connectTimeout(config('dajisaas.connect_timeout'))
+                ->withOptions(['verify' => (bool) config('dajisaas.verify_ssl')])
+                ->get($this->baseUrl . $endpoint, [
+                    'appKey' => $this->appKey,
+                    'appSecret' => $this->appSecret,
+                    'item_id' => $itemId,
+                ]);
+            
+            // Log for debugging
+            \Log::info('Taobao API request', [
+                'endpoint' => $endpoint,
+                'item_id' => $itemId,
+                'status' => $res->status(),
+                'body' => $res->body()
+            ]);
+            
+            if ($res->successful()) {
+                $json = $res->json();
+                return $json['data'] ?? $json ?? [];
+            }
+            
+            // If GET fails, try POST
+            if ($res->status() === 400 || $res->status() === 404) {
+                $res = Http::timeout(config('dajisaas.timeout'))
+                    ->connectTimeout(config('dajisaas.connect_timeout'))
+                    ->withOptions(['verify' => (bool) config('dajisaas.verify_ssl')])
+                    ->asJson()->post($this->baseUrl . $endpoint, [
+                        'appKey' => $this->appKey,
+                        'appSecret' => $this->appSecret,
+                        'item_id' => $itemId,
+                    ]);
+                
+                if ($res->successful()) {
+                    $json = $res->json();
+                    return $json['data'] ?? $json ?? [];
+                }
+            }
+            
+            // If not 400/404, return the error
+            if ($res->status() !== 400 && $res->status() !== 404) {
+                return [
+                    '_error' => true,
+                    'status' => $res->status(),
+                    'body' => $res->body(),
+                    'endpoint' => $endpoint,
+                ];
+            }
+        }
+        
+        // All endpoints failed
+        return [
+            '_error' => true,
+            'status' => 400,
+            'body' => 'All Taobao endpoints returned 400/404',
+            'endpoint' => 'multiple',
+        ];
+    }
+
+    public function taobaoUploadImage(string $imageBase64): array
+    {
+        $endpoint = '/taobao/upload/image';
+        $res = Http::timeout(config('dajisaas.timeout'))
+            ->connectTimeout(config('dajisaas.connect_timeout'))
+            ->withOptions(['verify' => (bool) config('dajisaas.verify_ssl')])
+            ->asMultipart()->post($this->baseUrl . $endpoint, [
+            'appKey' => $this->appKey,
+            'appSecret' => $this->appSecret,
+            'image_base64' => $imageBase64,
+        ]);
+        
+        if ($res->successful()) {
+            $json = $res->json();
+            return $json['data'] ?? $json ?? [];
+        }
+        
+        return [
+            '_error' => true,
+            'status' => $res->status(),
+            'body' => $res->body(),
+            'endpoint' => $endpoint,
+        ];
+    }
+
+    public function taobaoProductDetailByShortUrl(string $url): array
+    {
+        $endpoint = '/taobao/product/detailByShortUrl';
+        $res = Http::timeout(config('dajisaas.timeout'))
+            ->connectTimeout(config('dajisaas.connect_timeout'))
+            ->withOptions(['verify' => (bool) config('dajisaas.verify_ssl')])
+            ->asJson()->post($this->baseUrl . $endpoint, [
+            'appKey' => $this->appKey,
+            'appSecret' => $this->appSecret,
+            'url' => $url,
+        ]);
+        if ($res->successful()) {
+            $json = $res->json();
+            return $json['data'] ?? $json ?? [];
+        }
+        return [
+            '_error' => true,
+            'status' => $res->status(),
+            'body' => $res->body(),
+            'endpoint' => $endpoint,
+        ];
+    }
+
+    public function taobaoProductInfo(string $itemId): array
+    {
+        $endpoint = '/taobao/product/info';
+        $res = Http::timeout(config('dajisaas.timeout'))
+            ->connectTimeout(config('dajisaas.connect_timeout'))
+            ->withOptions(['verify' => (bool) config('dajisaas.verify_ssl')])
+            ->asJson()->post($this->baseUrl . $endpoint, [
+            'appKey' => $this->appKey,
+            'appSecret' => $this->appSecret,
+            'itemId' => $itemId,
+        ]);
+        if ($res->successful()) {
+            $json = $res->json();
+            return $json['data'] ?? $json ?? [];
+        }
+        return [
+            '_error' => true,
+            'status' => $res->status(),
+            'body' => $res->body(),
+            'endpoint' => $endpoint,
+        ];
+    }
+
+    public function taobaoProductSearch(string $keyword): array
+    {
+        $endpoint = '/taobao/product/search';
+        $res = Http::timeout(config('dajisaas.timeout'))
+            ->connectTimeout(config('dajisaas.connect_timeout'))
+            ->withOptions(['verify' => (bool) config('dajisaas.verify_ssl')])
+            ->asJson()->post($this->baseUrl . $endpoint, [
+            'appKey' => $this->appKey,
+            'appSecret' => $this->appSecret,
+            'keyword' => $keyword,
+        ]);
+        if ($res->successful()) {
+            $json = $res->json();
+            return $json['data'] ?? $json ?? [];
+        }
+        return [
+            '_error' => true,
+            'status' => $res->status(),
+            'body' => $res->body(),
+            'endpoint' => $endpoint,
+        ];
+    }
+
+    public function taobaoProductDetailByUrl(string $url): array
+    {
+        $endpoint = '/taobao/product/detailByUrl';
         $res = Http::timeout(config('dajisaas.timeout'))
             ->connectTimeout(config('dajisaas.connect_timeout'))
             ->withOptions(['verify' => (bool) config('dajisaas.verify_ssl')])

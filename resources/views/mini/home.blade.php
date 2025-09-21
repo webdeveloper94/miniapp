@@ -17,8 +17,12 @@
       @csrf
       <label class="form-label">Mahsulot linkini kiriting:</label>
       <div class="input-group">
-        <input class="form-control mini-input" name="link" type="url" placeholder="https://item.taobao.com/..." required />
+        <input class="form-control mini-input" name="link" type="url" placeholder="https://detail.1688.com/offer/..." required />
         <button class="btn btn-mini" type="submit"><i class="bi bi-send"></i> Yuborish</button>
+      </div>
+      <div class="alert alert-info mt-2 mb-0">
+        <i class="bi bi-info-circle me-1"></i>
+        <strong>Qo'llab-quvvatlanadigan saytlar:</strong> Faqat 1688.com linklari
       </div>
     </form>
     @if ($errors->any())
@@ -33,9 +37,9 @@
   <div class="card mini-card p-3 mb-3">
     <h6 class="mb-2">Qanday ishlaydi?</h6>
     <ul class="mb-0">
-      <li>Linkni yuboring</li>
+      <li>1688.com linkini yuboring</li>
       <li>Biz narx va tafsilotlarni tekshiramiz</li>
-      <li>Buyurtma berish va to‘lov</li>
+      <li>Buyurtma berish va to'lov</li>
       <li>Yetkazib berish</li>
     </ul>
   </div>
