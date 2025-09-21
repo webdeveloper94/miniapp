@@ -19,9 +19,25 @@ class UserAppController extends Controller
     private function ensureFakeTelegramUser()
     {
         if (!session('telegram_user')) {
+            // Mavjud user ni topish (seeder orqali yaratilgan)
+            $user = \App\Models\User::where('role', 'user')->first();
+            
+            if (!$user) {
+                // Agar user yo'q bo'lsa, oddiy user yaratish
+                $user = \App\Models\User::create([
+                    'name' => 'Test User',
+                    'email' => 'testuser@example.com',
+                    'password' => bcrypt('password'),
+                    'username' => 'testuser',
+                    'phone' => '+998901234567',
+                    'role' => 'user',
+                    'language' => 'uz'
+                ]);
+            }
+            
             $fakeUser = [
-                'id' => 123456789,
-                'username' => 'testuser',
+                'id' => $user->id,
+                'username' => $user->username,
                 'first_name' => 'Test',
                 'last_name' => 'User',
                 'language_code' => 'uz',

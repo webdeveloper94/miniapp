@@ -11,21 +11,11 @@
   <div class="card mini-card p-3 mb-3">
     <h6 class="mb-3">Mahsulot ma'lumotlari</h6>
     
-    <!-- Debug ma'lumotlari -->
-    <div class="alert alert-info py-2 px-3 mb-3 small">
-      <strong>Debug:</strong><br>
-      Product mavjud: {{ $product ? 'Ha' : 'Yo\'q' }}<br>
-      @if($product)
-        Subject: {{ $product['data']['subject'] ?? 'Yo\'q' }}<br>
-        Title: {{ $product['data']['title'] ?? 'Yo\'q' }}<br>
-        Price: {{ $product['data']['price'] ?? 'Yo\'q' }}<br>
-        MinPrice: {{ $product['data']['minPrice'] ?? 'Yo\'q' }}
-      @endif
-    </div>
-    
     <div class="d-flex align-items-start">
       @if(isset($product['data']['productImage']['images'][0]))
         <img src="{{ $product['data']['productImage']['images'][0] }}" class="me-3" style="width:80px;height:80px;object-fit:cover;border-radius:8px" referrerpolicy="no-referrer" crossorigin="anonymous">
+      @elseif(isset($product['productImage']['images'][0]))
+        <img src="{{ $product['productImage']['images'][0] }}" class="me-3" style="width:80px;height:80px;object-fit:cover;border-radius:8px" referrerpolicy="no-referrer" crossorigin="anonymous">
       @else
         <div class="me-3 d-flex align-items-center justify-content-center" style="width:80px;height:80px;background:#f0f0f0;border-radius:8px">
           <i class="bi bi-image text-muted"></i>
@@ -33,9 +23,21 @@
       @endif
       
       <div class="flex-grow-1">
-        <h6 class="mb-1">{{ $product['data']['subject'] ?? $product['data']['title'] ?? 'Mahsulot' }}</h6>
+        <h6 class="mb-1">{{ $product['data']['subject'] ?? $product['subject'] ?? 'Mahsulot' }}</h6>
         <div class="text-secondary small mb-2">
-          <span class="fw-semibold">{{ number_format($product['data']['price'] ?? $product['data']['minPrice'] ?? 0, 0, '', ' ') }} so'm</span>
+          @php
+            $price = null;
+            if (isset($product['data']['productSaleInfo']['priceRangeList'][0]['price'])) {
+              $price = $product['data']['productSaleInfo']['priceRangeList'][0]['price'];
+            } elseif (isset($product['productSaleInfo']['priceRangeList'][0]['price'])) {
+              $price = $product['productSaleInfo']['priceRangeList'][0]['price'];
+            }
+          @endphp
+          @if($price)
+            <span class="fw-semibold">{{ number_format($price, 0, '', ' ') }} so'm</span>
+          @else
+            <span class="fw-semibold">Narx ma'lum emas</span>
+          @endif
         </div>
       </div>
     </div>
@@ -44,9 +46,9 @@
   <form method="POST" action="{{ route('mini.order.create') }}">
     @csrf
     <input type="hidden" name="product_id" value="{{ $offerId }}">
-    <input type="hidden" name="title" value="{{ $product['data']['subject'] ?? $product['data']['title'] ?? 'Mahsulot' }}">
-    <input type="hidden" name="price" value="{{ $product['data']['price'] ?? $product['data']['minPrice'] ?? 0 }}">
-    <input type="hidden" name="selected_variants" value="{{ json_encode($product['data']['skuProps'] ?? []) }}">
+    <input type="hidden" name="title" value="{{ $product['data']['subject'] ?? $product['subject'] ?? 'Mahsulot' }}">
+    <input type="hidden" name="price" value="{{ $product['data']['productSaleInfo']['priceRangeList'][0]['price'] ?? $product['productSaleInfo']['priceRangeList'][0]['price'] ?? 0 }}">
+    <input type="hidden" name="selected_variants" value="{{ json_encode([]) }}">
 
     <div class="card mini-card p-3 mb-3">
       <h6 class="mb-3">Foydalanuvchi ma'lumotlari</h6>
@@ -132,7 +134,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const quantityInput = document.querySelector('input[name="quantity"]');
   const quantityDisplay = document.getElementById('quantity-display');
   const totalPrice = document.getElementById('total-price');
-  const unitPrice = {{ $product['data']['price'] ?? $product['data']['minPrice'] ?? 0 }};
+  const unitPrice = {{ isset($product['data']['productSaleInfo']['priceRangeList'][0]['price']) ? $product['data']['productSaleInfo']['priceRangeList'][0]['price'] : (isset($product['productSaleInfo']['priceRangeList'][0]['price']) ? $product['productSaleInfo']['priceRangeList'][0]['price'] : 0) }};
 
   function updateTotal() {
     const quantity = parseInt(quantityInput.value) || 1;
