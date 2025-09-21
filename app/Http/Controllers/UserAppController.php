@@ -46,6 +46,38 @@ class UserAppController extends Controller
                 'is_premium' => false,
             ];
             session(['telegram_user' => $fakeUser]);
+        } else {
+            // Session mavjud, lekin user_id ni tekshirish
+            $telegramUser = session('telegram_user');
+            $userId = $telegramUser['id'] ?? null;
+            
+            if ($userId && !\App\Models\User::where('id', $userId)->exists()) {
+                // Agar session da user_id mavjud emas bo'lsa, yangi user yaratish
+                $user = \App\Models\User::where('role', 'user')->first();
+                if (!$user) {
+                    $user = \App\Models\User::create([
+                        'name' => 'Test User',
+                        'email' => 'testuser@example.com',
+                        'password' => bcrypt('password'),
+                        'username' => 'testuser',
+                        'phone' => '+998901234567',
+                        'role' => 'user',
+                        'language' => 'uz'
+                    ]);
+                }
+                
+                // Session ni yangilash
+                $fakeUser = [
+                    'id' => $user->id,
+                    'username' => $user->username,
+                    'first_name' => 'Test',
+                    'last_name' => 'User',
+                    'language_code' => 'uz',
+                    'is_bot' => false,
+                    'is_premium' => false,
+                ];
+                session(['telegram_user' => $fakeUser]);
+            }
         }
     }
 
@@ -81,10 +113,22 @@ class UserAppController extends Controller
                 $product = $api->alibabaProductDetailByShortUrl($link);
             }
         } elseif ($isTaobao) {
-            // Taobao is not supported by DajiSaas API
-            return back()->withErrors(['api' => 'Taobao mahsulotlari hozircha qo\'llab-quvvatlanmaydi. DajiSaas API da Taobao uchun ruxsat yo\'q. Iltimos, 1688.com linklarini ishlating.']);
+            // Extract itemId from Taobao URL
+            preg_match('~[?&]id=(\d+)~', $link, $matches);
+            $itemId = $matches[1] ?? null;
+            
+            if ($itemId) {
+                // Try Taobao API with itemId using /taobao/traffic/item/get endpoint
+                $product = $api->taobaoProductDetailByItemId($itemId);
+                
+                if (isset($product['_error'])) {
+                    return back()->withErrors(['api' => 'Taobao mahsulot topilmadi. Iltimos, boshqa linkni sinab ko\'ring. API xatosi: ' . $product['status']]);
+                }
+            } else {
+                return back()->withErrors(['api' => 'Taobao linkida mahsulot ID topilmadi. Iltimos, to\'liq linkni kiriting.']);
+            }
         } else {
-            return back()->withErrors(['api' => 'Qo\'llab-quvvatlanmaydigan link. Faqat 1688.com linklarini kiriting.']);
+            return back()->withErrors(['api' => 'Qo\'llab-quvvatlanmaydigan link. Faqat 1688.com yoki Taobao.com linklarini kiriting.']);
         }
         
         // Check for any remaining errors
@@ -283,9 +327,39 @@ class UserAppController extends Controller
                 'address' => 'required|string|max:500',
             ]);
 
-            // Telegram user ID ni olish
+            // Telegram user ID ni olish va tekshirish
             $telegramUser = session('telegram_user');
             $userId = $telegramUser['id'] ?? 1; // Fallback user ID
+            
+            // User mavjudligini tekshirish
+            if (!\App\Models\User::where('id', $userId)->exists()) {
+                // Agar user mavjud bo'lmasa, yangi user yaratish
+                $user = \App\Models\User::where('role', 'user')->first();
+                if (!$user) {
+                    $user = \App\Models\User::create([
+                        'name' => 'Test User',
+                        'email' => 'testuser@example.com',
+                        'password' => bcrypt('password'),
+                        'username' => 'testuser',
+                        'phone' => '+998901234567',
+                        'role' => 'user',
+                        'language' => 'uz'
+                    ]);
+                }
+                $userId = $user->id;
+                
+                // Session ni yangilash
+                $fakeUser = [
+                    'id' => $user->id,
+                    'username' => $user->username,
+                    'first_name' => 'Test',
+                    'last_name' => 'User',
+                    'language_code' => 'uz',
+                    'is_bot' => false,
+                    'is_premium' => false,
+                ];
+                session(['telegram_user' => $fakeUser]);
+            }
 
             // Buyurtma yaratish
             $order = Order::create([

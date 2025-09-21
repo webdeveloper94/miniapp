@@ -80,7 +80,15 @@
   }
   headEl.innerHTML = `<div class="fw-semibold mb-1">${title}</div><div class="mb-1">Narx: <span class="chip">${price ?? '-'}</span></div><small class="text-secondary d-block">Do‘kon: ${shop}</small>`;
 
-  let imgs = pick('images') || pick('imageList') || pick('gallery') || (product && product.productImage && (product.productImage.images || product.productImage.imageList)) || pick('productImage');
+  // Try different image sources for Taobao products
+  let imgs = pick('images') || pick('imageList') || pick('gallery') || 
+             (product && product.productImage && (product.productImage.images || product.productImage.imageList)) || 
+             pick('productImage') ||
+             (product && product.itemImages && product.itemImages.map(img => img.url)) ||
+             (product && product.images && product.images.map(img => img.url || img)) ||
+             (product && product.picUrl && [product.picUrl]) ||
+             (product && product.image && [product.image]);
+  
   if (imgs && imgs.images) imgs = imgs.images;
   if (typeof imgs === 'string') imgs = [imgs];
   if (imgs && imgs.length){
@@ -100,7 +108,9 @@
     imagesEl.classList.remove('text-secondary');
   }
 
-  const attrs = product.props || product.attributes || product.skuProps || product.attributeList || product.productAttribute || [];
+  // Try different attribute sources for Taobao products
+  const attrs = product.props || product.attributes || product.skuProps || product.attributeList || product.productAttribute || 
+                product.itemProps || product.props || product.skuProps || product.attributes || [];
   if (attrs && Object.keys(attrs).length){
     attrsWrap.classList.remove('d-none');
     const rows = [];
@@ -119,8 +129,9 @@
     });
   }
 
-  // Build variants from skuProps or derive from productSkuInfos
-  let skuProps = product.skuProps || product.skuAttributes || product.skuPropertyList || [];
+  // Build variants from skuProps or derive from productSkuInfos (Taobao support)
+  let skuProps = product.skuProps || product.skuAttributes || product.skuPropertyList || 
+                 product.skuProps || product.skuAttributes || product.skuPropertyList || [];
   if ((!skuProps || !skuProps.length) && Array.isArray(product.productSkuInfos)) {
     const byName = {};
     product.productSkuInfos.forEach(sku => {
@@ -134,6 +145,8 @@
   }
 
   console.debug('Product debug:', product);
+  console.debug('Product keys:', Object.keys(product || {}));
+  console.debug('Product structure:', JSON.stringify(product, null, 2));
   if (skuProps && skuProps.length){
     variantsWrap.classList.remove('d-none');
     variantsBody.innerHTML = skuProps.map(p=>{

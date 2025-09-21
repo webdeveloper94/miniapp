@@ -65,72 +65,34 @@ class DajiSaasClient
 
     public function taobaoProductDetailByItemId(string $itemId): array
     {
-        // Try different possible endpoints for Taobao
-        $endpoints = [
-            '/taobao/product/get',
-            '/taobao/product/detail',
-            '/taobao/item/detail',
-            '/taobao/product/info'
-        ];
-        
-        foreach ($endpoints as $endpoint) {
-            // Try GET request first
-            $res = Http::timeout(config('dajisaas.timeout'))
-                ->connectTimeout(config('dajisaas.connect_timeout'))
-                ->withOptions(['verify' => (bool) config('dajisaas.verify_ssl')])
-                ->get($this->baseUrl . $endpoint, [
-                    'appKey' => $this->appKey,
-                    'appSecret' => $this->appSecret,
-                    'item_id' => $itemId,
-                ]);
-            
-            // Log for debugging
-            \Log::info('Taobao API request', [
-                'endpoint' => $endpoint,
+        $endpoint = '/taobao/traffic/item/get';
+        $res = Http::timeout(config('dajisaas.timeout'))
+            ->connectTimeout(config('dajisaas.connect_timeout'))
+            ->withOptions(['verify' => (bool) config('dajisaas.verify_ssl')])
+            ->get($this->baseUrl . $endpoint, [
+                'appKey' => $this->appKey,
+                'appSecret' => $this->appSecret,
                 'item_id' => $itemId,
-                'status' => $res->status(),
-                'body' => $res->body()
             ]);
-            
-            if ($res->successful()) {
-                $json = $res->json();
-                return $json['data'] ?? $json ?? [];
-            }
-            
-            // If GET fails, try POST
-            if ($res->status() === 400 || $res->status() === 404) {
-                $res = Http::timeout(config('dajisaas.timeout'))
-                    ->connectTimeout(config('dajisaas.connect_timeout'))
-                    ->withOptions(['verify' => (bool) config('dajisaas.verify_ssl')])
-                    ->asJson()->post($this->baseUrl . $endpoint, [
-                        'appKey' => $this->appKey,
-                        'appSecret' => $this->appSecret,
-                        'item_id' => $itemId,
-                    ]);
-                
-                if ($res->successful()) {
-                    $json = $res->json();
-                    return $json['data'] ?? $json ?? [];
-                }
-            }
-            
-            // If not 400/404, return the error
-            if ($res->status() !== 400 && $res->status() !== 404) {
-                return [
-                    '_error' => true,
-                    'status' => $res->status(),
-                    'body' => $res->body(),
-                    'endpoint' => $endpoint,
-                ];
-            }
+        
+        // Log for debugging
+        \Log::info('Taobao API request', [
+            'endpoint' => $endpoint,
+            'item_id' => $itemId,
+            'status' => $res->status(),
+            'body' => $res->body()
+        ]);
+        
+        if ($res->successful()) {
+            $json = $res->json();
+            return $json['data'] ?? $json ?? [];
         }
         
-        // All endpoints failed
         return [
             '_error' => true,
-            'status' => 400,
-            'body' => 'All Taobao endpoints returned 400/404',
-            'endpoint' => 'multiple',
+            'status' => $res->status(),
+            'body' => $res->body(),
+            'endpoint' => $endpoint,
         ];
     }
 
