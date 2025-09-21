@@ -10,7 +10,7 @@
 <body>
 <main class="container">
     <h3>Admin Login</h3>
-    <form action="{{ route('login.post') }}" method="POST">
+    <form action="{{ route('admin.login.post') }}" method="POST">
         @csrf
         <label>Login (username)
             <input type="text" name="login" value="{{ old('login') }}" required />

@@ -11,7 +11,7 @@ class AdminMiddleware
     public function handle(Request $request, Closure $next): Response
     {
         if (!auth()->check()) {
-            return redirect()->route('login');
+            return redirect()->route('admin.login');
         }
         if (!auth()->user()->isAdmin()) {
             return redirect()->route('mini.home');
