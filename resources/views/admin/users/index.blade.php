@@ -3,7 +3,7 @@
 @section('title', 'Foydalanuvchilar')
 
 @section('content')
-<div class="card p-3">
+<div class="wg-box">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h5 class="mb-0 d-flex align-items-center gap-2"><i class="bi bi-people"></i> Foydalanuvchilar</h5>
     <form class="d-flex gap-2" method="GET">
@@ -17,33 +17,31 @@
       <a class="btn btn-sm btn-outline-light" href="{{ route('admin.users.index') }}"><i class="bi bi-x"></i></a>
     </form>
   </div>
-  <div class="table-responsive">
-    <table class="table table-sm align-middle">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Ism</th>
-                <th>Username</th>
-                <th>Telefon</th>
-                <th>Email</th>
-                <th>Rol</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach ($users as $user)
-                <tr>
-                    <td>{{ $user->id }}</td>
-                    <td>{{ $user->name }}</td>
-                    <td>{{ $user->username }}</td>
-                    <td>{{ $user->phone }}</td>
-                    <td>{{ $user->email }}</td>
-                    <td><span class="badge bg-secondary">{{ $user->role }}</span></td>
-                </tr>
-            @endforeach
-        </tbody>
-    </table>
+  <div class="wg-table table-orders">
+    <ul class="table-title flex gap10 mb-14">
+      <li><div class="body-title">ID</div></li>
+      <li><div class="body-title">Ism</div></li>
+      <li><div class="body-title">Username</div></li>
+      <li><div class="body-title">Telefon</div></li>
+      <li><div class="body-title">Email</div></li>
+      <li><div class="body-title">Rol</div></li>
+    </ul>
+    <ul class="flex flex-column gap18">
+      @foreach ($users as $user)
+        <li class="product-item gap14">
+          <div class="body-text">#{{ $user->id }}</div>
+          <div class="flex items-center justify-between flex-grow gap10">
+            <div class="name"><span class="body-text">{{ $user->name }}</span></div>
+            <div class="body-text">{{ $user->username }}</div>
+            <div class="body-text">{{ $user->phone }}</div>
+            <div class="body-text">{{ $user->email }}</div>
+            <div class="body-text"><span class="badge {{ $user->role==='admin' ? 'bg-primary' : 'bg-secondary' }}">{{ $user->role }}</span></div>
+          </div>
+        </li>
+      @endforeach
+    </ul>
   </div>
-  {{ $users->links() }}
+  <div class="mt-3">{{ $users->links() }}</div>
 </div>
 @endsection
 

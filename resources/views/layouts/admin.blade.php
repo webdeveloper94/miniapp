@@ -89,6 +89,40 @@
                   </form>
                 </div>
                 <div class="header-grid">
+                  <div class="header-item country">
+                    <select class="image-select no-text" onchange="location.href='{{ url('admin?lang=') }}'+this.value">
+                      <option data-thumbnail="{{ asset('assets/admin/images/country/1.png') }}" value="en">EN</option>
+                      <option data-thumbnail="{{ asset('assets/admin/images/country/9.png') }}" value="uz">UZ</option>
+                      <option data-thumbnail="{{ asset('assets/admin/images/country/7.png') }}" value="ru">RU</option>
+                    </select>
+                  </div>
+                  <div class="header-item button-dark-light" onclick="document.body.classList.toggle('dark'); localStorage.setItem('remos-dark', document.body.classList.contains('dark') ? '1' : '0');" title="Dark/Light">
+                    <i class="icon-moon"></i>
+                  </div>
+                  <div class="popup-wrap noti type-header">
+                    <div class="dropdown">
+                      <button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <span class="header-item"><span class="text-tiny">{{ isset($stats['orders_pending']) ? $stats['orders_pending'] : (isset($pendingOrders) ? $pendingOrders->count() : 0) }}</span><i class="icon-bell"></i></span>
+                      </button>
+                      <ul class="dropdown-menu dropdown-menu-end has-content">
+                        <li><h6>Yangi bildirishnomalar</h6></li>
+                        @forelse(($pendingOrders ?? []) as $po)
+                          <li>
+                            <div class="message-item item-1">
+                              <div class="image"><i class="icon-noti-1"></i></div>
+                              <div>
+                                <div class="body-title-2">Yangi buyurtma #{{ $po->id }}</div>
+                                <div class="text-tiny">Foydalanuvchi: {{ $po->user->name ?? 'Noma’lum' }} | Holat: {{ $po->status }}</div>
+                              </div>
+                            </div>
+                          </li>
+                        @empty
+                          <li><div class="px-3 py-2 text-muted">Hozircha bildirishnoma yo‘q</div></li>
+                        @endforelse
+                        <li><a href="{{ route('admin.orders.index', ['status' => 'pending']) }}" class="tf-button w-full">Barchasini ko‘rish</a></li>
+                      </ul>
+                    </div>
+                  </div>
                   <div class="popup-wrap user type-header">
                     <div class="dropdown">
                       <button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">

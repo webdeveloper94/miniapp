@@ -3,7 +3,7 @@
 @section('title', 'Sozlash')
 
 @section('content')
-<div class="card p-3">
+<div class="wg-box">
   <h5 class="mb-3 d-flex align-items-center gap-2"><i class="bi bi-gear"></i> Sozlash</h5>
   <form method="POST" action="{{ route('admin.settings.update') }}" class="row g-3">
     @csrf

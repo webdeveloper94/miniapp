@@ -3,7 +3,7 @@
 @section('title', 'Buyurtma #'.$order->id)
 
 @section('content')
-<div class="card p-3 mb-3">
+<div class="wg-box mb-3">
 <h5 class="d-flex align-items-center gap-2"><i class="bi bi-bag"></i> Buyurtma #{{ $order->id }}</h5>
 
 <p class="mb-1"><strong>Foydalanuvchi:</strong> {{ $order->user->name }} ({{ $order->user->email }})</p>
@@ -12,31 +12,30 @@
 <p class="mb-0"><a class="link-light" href="{{ $order->product_url }}" target="_blank"><i class="bi bi-box-arrow-up-right"></i> Mahsulot linki</a></p>
 </div>
 
-<div class="card p-3">
+<div class="wg-box">
 <h6 class="mb-2">Mahsulotlar</h6>
-<div class="table-responsive">
-<table class="table table-sm align-middle">
-    <thead>
-        <tr>
-            <th>Nomi</th>
-            <th>Miqdori</th>
-            <th>Narx</th>
-            <th>Jami</th>
-        </tr>
-    </thead>
-    <tbody>
+<div class="wg-table table-orders">
+  <ul class="table-title flex gap10 mb-14">
+    <li><div class="body-title">Nomi</div></li>
+    <li><div class="body-title">Miqdori</div></li>
+    <li><div class="body-title">Narx</div></li>
+    <li><div class="body-title">Jami</div></li>
+  </ul>
+  <ul class="flex flex-column gap18">
     @foreach($order->items as $item)
-        <tr>
-            <td>{{ $item->title }}</td>
-            <td>{{ $item->quantity }}</td>
-            <td>{{ $item->unit_price }}</td>
-            <td>{{ $item->subtotal }}</td>
-        </tr>
+      <li class="product-item gap14">
+        <div class="body-text">{{ $item->title }}</div>
+        <div class="flex items-center justify-between flex-grow gap10">
+          <div class="body-text">{{ $item->quantity }}</div>
+          <div class="body-text">{{ $item->unit_price }}</div>
+          <div class="body-text">{{ $item->subtotal }}</div>
+        </div>
+      </li>
     @endforeach
-    </tbody>
-</table>
+  </ul>
+</div>
 
-<form method="POST" action="{{ route('admin.orders.updateStatus', $order) }}" class="row g-2">
+<form method="POST" action="{{ route('admin.orders.updateStatus', $order) }}" class="row g-2 mt-2">
     @csrf
     @method('PUT')
     <div class="col-md-4">

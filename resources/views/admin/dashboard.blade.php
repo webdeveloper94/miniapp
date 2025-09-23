@@ -3,44 +3,47 @@
 @section('title', 'Dashboard')
 
 @section('content')
-<div class="tf-section-4 mb-30">
-  <div class="row g-3">
-    <div class="col-12 col-md-4">
-      <div class="wg-chart-default">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap14">
-            <div class="image type-white"><i class="icon-file"></i></div>
-            <div>
-              <div class="body-text mb-2">Jami buyurtmalar</div>
-              <h4>{{ $stats['orders_count'] ?? 0 }}</h4>
-            </div>
-          </div>
+<div class="row g-3">
+  <div class="col-12 col-lg-3">
+    <div class="wg-box" style="padding:20px">
+      <div class="flex items-center gap14">
+        <div class="image type-white"><i class="icon-shopping-bag"></i></div>
+        <div>
+          <div class="body-text">Total Sales</div>
+          <h4>{{ number_format($stats['total_sales'] ?? 0) }}</h4>
         </div>
       </div>
     </div>
-    <div class="col-12 col-md-4">
-      <div class="wg-chart-default">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap14">
-            <div class="image type-white"><i class="icon-dollar-sign"></i></div>
-            <div>
-              <div class="body-text mb-2">Kutilayotgan to'lovlar</div>
-              <h4>{{ $stats['payments_pending'] ?? 0 }}</h4>
-            </div>
-          </div>
+  </div>
+  <div class="col-12 col-lg-3">
+    <div class="wg-box" style="padding:20px">
+      <div class="flex items-center gap14">
+        <div class="image type-white"><i class="icon-dollar-sign"></i></div>
+        <div>
+          <div class="body-text">Total Income</div>
+          <h4>{{ number_format($stats['total_income'] ?? 0) }}</h4>
         </div>
       </div>
     </div>
-    <div class="col-12 col-md-4">
-      <div class="wg-chart-default">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap14">
-            <div class="image type-white"><i class="icon-clock"></i></div>
-            <div>
-              <div class="body-text mb-2">Kutilayotgan buyurtmalar</div>
-              <h4>{{ $stats['orders_pending'] ?? 0 }}</h4>
-            </div>
-          </div>
+  </div>
+  <div class="col-12 col-lg-3">
+    <div class="wg-box" style="padding:20px">
+      <div class="flex items-center gap14">
+        <div class="image type-white"><i class="icon-file"></i></div>
+        <div>
+          <div class="body-text">Orders Paid</div>
+          <h4>{{ $stats['orders_paid'] ?? 0 }}</h4>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-3">
+    <div class="wg-box" style="padding:20px">
+      <div class="flex items-center gap14">
+        <div class="image type-white"><i class="icon-users"></i></div>
+        <div>
+          <div class="body-text">Total Visitor</div>
+          <h4>{{ $stats['total_visitor'] ?? 0 }}</h4>
         </div>
       </div>
     </div>
@@ -50,13 +53,13 @@
 <div class="row g-3">
   <div class="col-12 col-lg-6">
     <div class="wg-box">
-      <div class="flex items-center justify-between"><h5>Recent Order</h5></div>
+      <div class="flex items-center justify-between"><h5>Oxirgi buyurtmalar</h5></div>
       <div id="line-chart-orders" style="height:260px"></div>
     </div>
   </div>
   <div class="col-12 col-lg-6">
     <div class="wg-box">
-      <div class="flex items-center justify-between"><h5>Top Products</h5></div>
+      <div class="flex items-center justify-between"><h5>Top Mahsulotlar</h5></div>
       <div class="wg-table table-top-product">
         <ul class="table-title flex gap10 mb-14">
           <li><div class="body-title">Mahsulot</div></li>

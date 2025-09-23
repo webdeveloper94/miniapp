@@ -11,6 +11,7 @@ class DashboardController extends Controller
     public function index()
     {
         $recentOrders = Order::query()->with('user')->orderByDesc('id')->limit(10)->get();
+        $pendingOrders = Order::query()->with('user')->where('status', 'pending')->orderByDesc('id')->limit(5)->get();
         $recentPayments = Payment::query()->with(['user','order'])->orderByDesc('id')->limit(10)->get();
 
         $stats = [
@@ -19,6 +20,8 @@ class DashboardController extends Controller
             'orders_pending' => Order::where('status', 'pending')->count(),
             'orders_paid' => Payment::where('status', 'approved')->count(),
             'total_visitor' => Order::distinct('user_id')->count('user_id'),
+            'total_sales' => (float) Payment::where('status', 'approved')->sum('amount'),
+            'total_income' => (float) Payment::where('status', 'approved')->sum('amount'),
         ];
 
         // Recent orders by month for chart (last 12 months)
@@ -38,7 +41,7 @@ class DashboardController extends Controller
             $chartSeries[] = (int) ($ordersByMonth[$key] ?? 0);
         }
 
-        return view('admin.dashboard', compact('recentOrders', 'recentPayments', 'stats', 'chartLabels', 'chartSeries'));
+        return view('admin.dashboard', compact('recentOrders', 'recentPayments', 'stats', 'chartLabels', 'chartSeries', 'pendingOrders'));
     }
 }
 
