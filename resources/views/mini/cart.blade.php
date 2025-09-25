@@ -1,6 +1,6 @@
 @extends('layouts.mini')
 
-@section('title','Savatcha')
+@section('title', __('messages.cart'))
 
 @section('content')
 <div class="page">
@@ -34,7 +34,7 @@
           <div class="d-flex justify-content-between align-items-center">
             <div>
               <span class="fw-semibold">{{ number_format($item['price'], 0, '', ' ') }} so'm</span>
-              <small class="text-secondary d-block">Miqdor: {{ $item['quantity'] }}</small>
+              <small class="text-secondary d-block">{{ __('messages.qty') }}: {{ $item['quantity'] }}</small>
             </div>
             
             <div class="d-flex align-items-center gap-2">
@@ -43,7 +43,7 @@
               <form method="POST" action="{{ route('mini.cart.remove') }}" class="d-inline">
                 @csrf
                 <input type="hidden" name="product_key" value="{{ $key }}">
-                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Mahsulotni olib tashlashni xohlaysizmi?')">
+                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('{{ __('messages.remove') }}?')">
                   <i class="bi bi-trash"></i>
                 </button>
               </form>
@@ -56,7 +56,7 @@
 
     <div class="card mini-card p-3 mb-3">
       <div class="d-flex justify-content-between align-items-center mb-3">
-        <span class="fw-semibold">Jami:</span>
+        <span class="fw-semibold">{{ __('messages.total_label') }}:</span>
         <span class="fw-bold text-primary">
           @php
             $total = 0;
@@ -69,16 +69,16 @@
       </div>
       
       <div class="d-grid gap-2">
-        <!-- <button class="btn btn-mini"><i class="bi bi-lightning-charge"></i> Buyurtma berish</button> -->
-        <a href="{{ route('mini.home') }}" class="btn btn-outline-primary"><i class="bi bi-arrow-left"></i> Davom etish</a>
+        <!-- <button class="btn btn-mini"><i class="bi bi-lightning-charge"></i> {{ __('messages.checkout') }}</button> -->
+        <a href="{{ route('mini.home') }}" class="btn btn-outline-primary"><i class="bi bi-arrow-left"></i> {{ __('messages.continue') }}</a>
       </div>
     </div>
   @else
     <div class="card mini-card p-4 text-center">
       <i class="bi bi-cart-x fs-1 text-muted mb-3"></i>
-      <h6 class="mb-2">Savatcha bo'sh</h6>
-      <p class="text-secondary mb-3">Mahsulot qo'shish uchun bosh sahifaga o'ting</p>
-      <a href="{{ route('mini.home') }}" class="btn btn-mini"><i class="bi bi-house-door"></i> Bosh sahifa</a>
+      <h6 class="mb-2">{{ __('messages.cart_empty') }}</h6>
+      <p class="text-secondary mb-3">&nbsp;</p>
+      <a href="{{ route('mini.home') }}" class="btn btn-mini"><i class="bi bi-house-door"></i> {{ __('messages.go_home') }}</a>
     </div>
   @endif
 </div>

@@ -1,6 +1,6 @@
 @extends('layouts.mini')
 
-@section('title','Profil')
+@section('title', __('messages.profile'))
 
 @section('content')
 <!-- <div class="page">
@@ -16,7 +16,7 @@
     @if (session('status'))
       <div class="alert alert-info py-2 px-3">{{ session('status') }}</div>
     @endif
-    <h6 class="mb-2">Til</h6>
+    <h6 class="mb-2">{{ __('messages.language') }}</h6>
     <form method="POST" action="{{ route('mini.profile.language') }}" class="d-flex gap-2">
       @csrf
       <select class="form-select mini-input" name="language" style="max-width:200px">
@@ -24,43 +24,43 @@
         <option value="ru" {{ session('telegram_user.language_code') == 'ru' ? 'selected' : '' }}>Русский</option>
         <option value="en" {{ session('telegram_user.language_code') == 'en' ? 'selected' : '' }}>English</option>
       </select>
-      <button class="btn btn-mini" type="submit"><i class="bi bi-save"></i> Saqlash</button>
+      <button class="btn btn-mini" type="submit"><i class="bi bi-save"></i> {{ __('messages.save') }}</button>
     </form>
   </div>
 
   <div class="card mini-card p-3 mb-3">
-    <h6 class="mb-2">Telegram username</h6>
+    <h6 class="mb-2">{{ __('messages.telegram_username') }}</h6>
     <form method="POST" action="{{ route('mini.profile.credentials') }}" class="row g-2">
       @csrf
       <div class="col-12">
-        <label class="form-label">Username</label>
+        <label class="form-label">{{ __('messages.username') }}</label>
         <input class="form-control mini-input" type="text" name="username" value="{{ old('username', session('telegram_user.username')) }}" required>
       </div>
       <div class="col-12">
-        <button class="btn btn-mini w-100" type="submit"><i class="bi bi-check2"></i> Yangilash</button>
+        <button class="btn btn-mini w-100" type="submit"><i class="bi bi-check2"></i> {{ __('messages.update') }}</button>
       </div>
     </form>
   </div>
 
   <div class="card mini-card p-3 mb-3">
-    <h6 class="mb-2">Parolni o'zgartirish</h6>
+    <h6 class="mb-2">{{ __('messages.change_password') }}</h6>
     <form method="POST" action="{{ route('mini.auth.changePassword') }}" class="row g-2">
       @csrf
       <div class="col-12">
-        <label class="form-label">Eski parol</label>
-        <input class="form-control mini-input" type="password" name="old_password" placeholder="Eski parol">
-        <div class="form-text">Agar avval parol qo'ygan bo'lsangiz, eski parolni kiriting</div>
+        <label class="form-label">{{ __('messages.old_password') }}</label>
+        <input class="form-control mini-input" type="password" name="old_password" placeholder="{{ __('messages.old_password') }}">
+        <div class="form-text">&nbsp;</div>
       </div>
       <div class="col-12">
-        <label class="form-label">Yangi parol</label>
-        <input class="form-control mini-input" type="password" name="new_password" required minlength="4" maxlength="50" placeholder="Yangi parol">
+        <label class="form-label">{{ __('messages.new_password') }}</label>
+        <input class="form-control mini-input" type="password" name="new_password" required minlength="4" maxlength="50" placeholder="{{ __('messages.new_password') }}">
       </div>
       <div class="col-12">
-        <label class="form-label">Yangi parol (tasdiqlash)</label>
-        <input class="form-control mini-input" type="password" name="new_password_confirmation" required minlength="4" maxlength="50" placeholder="Yangi parolni tasdiqlang">
+        <label class="form-label">{{ __('messages.confirm_password') }}</label>
+        <input class="form-control mini-input" type="password" name="new_password_confirmation" required minlength="4" maxlength="50" placeholder="{{ __('messages.confirm_password') }}">
       </div>
       <div class="col-12">
-        <button class="btn btn-mini w-100" type="submit"><i class="bi bi-shield-lock"></i> Parolni yangilash</button>
+        <button class="btn btn-mini w-100" type="submit"><i class="bi bi-shield-lock"></i> {{ __('messages.update_password') }}</button>
       </div>
     </form>
   </div>

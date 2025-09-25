@@ -15,14 +15,14 @@
   <div class="card mini-card p-3 mb-3">
     <form method="POST" action="{{ route('mini.find') }}">
       @csrf
-      <label class="form-label">Mahsulot linkini kiriting:</label>
+      <label class="form-label">{{ __('messages.enter_link') }}:</label>
       <div class="input-group">
-        <input class="form-control mini-input" name="link" type="url" placeholder="https://item.taobao.com/... yoki https://detail.1688.com/offer/..." required />
-        <button class="btn btn-mini" type="submit"><i class="bi bi-send"></i> Yuborish</button>
+        <input class="form-control mini-input" name="link" type="url" placeholder="https://item.taobao.com/... or https://detail.1688.com/offer/..." required />
+        <button class="btn btn-mini" type="submit"><i class="bi bi-send"></i> {{ __('messages.send') }}</button>
       </div>
       <div class="alert alert-info mt-2 mb-0">
         <i class="bi bi-info-circle me-1"></i>
-        <strong>Qo'llab-quvvatlanadigan saytlar:</strong> 1688.com va Taobao.com linklari
+        <strong>{{ __('messages.supported_sites') }}</strong>
       </div>
     </form>
     @if ($errors->any())
@@ -35,12 +35,12 @@
   </div>
 
   <div class="card mini-card p-3 mb-3">
-    <h6 class="mb-2">Qanday ishlaydi?</h6>
+    <h6 class="mb-2">{{ __('messages.how_it_works') }}</h6>
     <ul class="mb-0">
-      <li>1688.com yoki Taobao.com linkini yuboring</li>
-      <li>Biz narx va tafsilotlarni tekshiramiz</li>
-      <li>Buyurtma berish va to'lov</li>
-      <li>Yetkazib berish</li>
+      <li>{{ __('messages.step_link') }}</li>
+      <li>{{ __('messages.step_check') }}</li>
+      <li>{{ __('messages.step_order') }}</li>
+      <li>{{ __('messages.step_delivery') }}</li>
     </ul>
   </div>
 
@@ -48,13 +48,13 @@
     <div class="col-6">
       <div class="card mini-card p-3 text-center">
         <div class="fs-3"><i class="bi bi-qr-code"></i></div>
-        <div>QR Skaner</div>
+        <div>{{ __('messages.qr_scanner') }}</div>
       </div>
     </div>
     <div class="col-6">
       <div class="card mini-card p-3 text-center">
         <div class="fs-3"><i class="bi bi-clock-history"></i></div>
-        <div>Tarix</div>
+        <div>{{ __('messages.history') }}</div>
       </div>
     </div>
   </div>

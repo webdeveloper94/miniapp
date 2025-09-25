@@ -48,10 +48,10 @@
   <nav class="bottom-nav py-2">
     <div class="container-sm" style="max-width:480px">
       <div class="d-flex justify-content-between text-center">
-        <a class="flex-fill {{ request()->routeIs('mini.home')?'active':'' }}" href="{{ route('mini.home') }}"><div><i class="bi bi-house-door fs-5"></i></div>Bosh sahifa</a>
-        <a class="flex-fill {{ request()->routeIs('mini.orders')?'active':'' }}" href="{{ route('mini.orders') }}"><div><i class="bi bi-bag fs-5"></i></div>Buyurtmalar</a>
-        <a class="flex-fill {{ request()->routeIs('mini.cart')?'active':'' }}" href="{{ route('mini.cart') }}"><div><i class="bi bi-cart fs-5"></i></div>Savatcha</a>
-        <a class="flex-fill {{ request()->routeIs('mini.profile')?'active':'' }}" href="{{ route('mini.profile') }}"><div><i class="bi bi-person fs-5"></i></div>Profil</a>
+        <a class="flex-fill {{ request()->routeIs('mini.home')?'active':'' }}" href="{{ route('mini.home') }}"><div><i class="bi bi-house-door fs-5"></i></div>{{ __('messages.home') }}</a>
+        <a class="flex-fill {{ request()->routeIs('mini.orders')?'active':'' }}" href="{{ route('mini.orders') }}"><div><i class="bi bi-bag fs-5"></i></div>{{ __('messages.orders') }}</a>
+        <a class="flex-fill {{ request()->routeIs('mini.cart')?'active':'' }}" href="{{ route('mini.cart') }}"><div><i class="bi bi-cart fs-5"></i></div>{{ __('messages.cart') }}</a>
+        <a class="flex-fill {{ request()->routeIs('mini.profile')?'active':'' }}" href="{{ route('mini.profile') }}"><div><i class="bi bi-person fs-5"></i></div>{{ __('messages.profile') }}</a>
       </div>
     </div>
   </nav>

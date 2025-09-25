@@ -1,6 +1,6 @@
 @extends('layouts.mini')
 
-@section('title','Buyurtma berish')
+@section('title', __('messages.checkout'))
 
 @section('content')
 <div class="page">
@@ -35,7 +35,7 @@
   @endphp
 
   <div class="card mini-card p-3 mb-3">
-    <h6 class="mb-3">Mahsulot ma'lumotlari</h6>
+    <h6 class="mb-3">{{ __('messages.product_info') }}</h6>
     
     <div class="d-flex align-items-start">
       @if(isset($product['data']['productImage']['images'][0]))
@@ -64,33 +64,33 @@
     <input type="hidden" name="price" value="{{ (float) ($rate>0 ? $unit*$rate : $unit) }}">
     <input type="hidden" name="selected_variants" value="{{ json_encode([]) }}">
 
-    <div class="card mini-card p-3 mb-3">
-      <h6 class="mb-3">Foydalanuvchi ma'lumotlari</h6>
+  <div class="card mini-card p-3 mb-3">
+    <h6 class="mb-3">{{ __('messages.user_info') }}</h6>
       
       <div class="row g-2 mb-3">
         <div class="col-6">
-          <label class="form-label">Ism</label>
+          <label class="form-label">{{ __('messages.first_name') }}</label>
           <input type="text" name="first_name" class="form-control mini-input" value="{{ session('telegram_user.first_name') }}" required>
         </div>
         <div class="col-6">
-          <label class="form-label">Familiya</label>
+          <label class="form-label">{{ __('messages.last_name') }}</label>
           <input type="text" name="last_name" class="form-control mini-input" value="{{ session('telegram_user.last_name') }}" required>
         </div>
       </div>
       
       <div class="mb-3">
-        <label class="form-label">Telefon raqami</label>
+        <label class="form-label">{{ __('messages.phone') }}</label>
         <input type="tel" name="phone" class="form-control mini-input" placeholder="+998901234567" required>
       </div>
       
       <div class="mb-3">
-        <label class="form-label">To'liq manzil</label>
+        <label class="form-label">{{ __('messages.address') }}</label>
         <textarea name="address" class="form-control mini-input" rows="3" placeholder="Shahar, tuman, ko'cha, uy raqami..." required></textarea>
       </div>
     </div>
 
-    <div class="card mini-card p-3 mb-3">
-      <h6 class="mb-3">Buyurtma ma'lumotlari</h6>
+  <div class="card mini-card p-3 mb-3">
+    <h6 class="mb-3">{{ __('messages.order_info') }}</h6>
       
       <div class="mb-3">
         <label class="form-label">Miqdor</label>
@@ -98,49 +98,48 @@
       </div>
       
       <div class="mb-3">
-        <label class="form-label">Qo'shimcha izoh (ixtiyoriy)</label>
+        <label class="form-label">{{ __('messages.note') }} (ixtiyoriy)</label>
         <textarea name="notes" class="form-control mini-input" rows="3" placeholder="Buyurtma haqida qo'shimcha ma'lumot..."></textarea>
       </div>
     </div>
 
-    <div class="card mini-card p-3 mb-3">
-      <h6 class="mb-3">To'lov ma'lumotlari</h6>
+  <div class="card mini-card p-3 mb-3">
+    <h6 class="mb-3">{{ __('messages.payment_info') }}</h6>
       
       <div class="alert alert-warning py-2 px-3 mb-3">
         <small>
           <i class="bi bi-info-circle me-1"></i>
-          Buyurtma berilgandan so'ng sizga to'lov karta raqami ko'rsatiladi. 
-          To'lovni amalga oshirib, chekni yuklang.
+          {{ __('messages.payment_note') }}
         </small>
       </div>
       
       <div class="d-flex justify-content-between align-items-center mb-2">
-        <span>Mahsulot narxi:</span>
+        <span>{{ __('messages.price') }}:</span>
         <span id="unit-price">{{ number_format($unitUzs, 0, '', ' ') }} {{ $rate>0 ? "so'm" : 'yuan' }}</span>
       </div>
       
       <div class="d-flex justify-content-between align-items-center mb-2">
-        <span>Miqdor:</span>
-        <span id="quantity-display">1 dona</span>
+        <span>{{ __('messages.quantity') }}:</span>
+        <span id="quantity-display">1 {{ __('messages.unit_piece') ?? 'dona' }}</span>
       </div>
       
       <div class="d-flex justify-content-between align-items-center mb-2">
-        <span>Xizmat haqi ({{ (float) $servicePercent }}%):</span>
+        <span>{{ __('messages.service_fee_label') }} ({{ (float) $servicePercent }}%):</span>
         <span id="service-fee">0 so'm</span>
       </div>
       <hr>
       <div class="d-flex justify-content-between align-items-center">
-        <span class="fw-semibold">Jami:</span>
+        <span class="fw-semibold">{{ __('messages.total_label') }}:</span>
         <span class="fw-bold text-primary" id="total-price">{{ number_format($unit, 0, '', ' ') }} so'm</span>
       </div>
     </div>
 
     <div class="d-grid gap-2">
       <button type="submit" class="btn btn-mini">
-        <i class="bi bi-lightning-charge"></i> Buyurtma berish
+        <i class="bi bi-lightning-charge"></i> {{ __('messages.checkout') }}
       </button>
       <a href="{{ route('mini.product') }}" class="btn btn-outline-primary">
-        <i class="bi bi-arrow-left"></i> Orqaga
+        <i class="bi bi-arrow-left"></i> {{ __('messages.back') }}
       </a>
     </div>
   </form>

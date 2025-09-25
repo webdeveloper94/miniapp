@@ -11,14 +11,14 @@
 
   <div id="attrs" class="card mini-card p-3 mb-3 d-none">
     <div class="d-flex justify-content-between align-items-center mb-2">
-      <h6 class="mb-0">Xususiyatlar</h6>
-      <button id="attrsToggle" type="button" class="btn btn-sm btn-outline-primary">Ko'rsatish</button>
+      <h6 class="mb-0">{{ __('messages.attributes') }}</h6>
+      <button id="attrsToggle" type="button" class="btn btn-sm btn-outline-primary">{{ __('messages.show') ?? "Ko'rsatish" }}</button>
     </div>
     <div id="attrsBody" class="d-none"></div>
   </div>
 
   <div id="variants" class="card mini-card p-3 mb-3 d-none">
-    <h6 class="mb-2">Variantlar</h6>
+    <h6 class="mb-2">{{ __('messages.variants') }}</h6>
     <div id="variantsBody"></div>
   </div>
 
@@ -38,8 +38,8 @@
   @endif -->
 
       <div class="d-grid gap-2">
-        <button class="btn btn-mini" onclick="addToCart()"><i class="bi bi-cart-plus"></i> Savatga qo'shish</button>
-        <button class="btn btn-mini" onclick="checkout()"><i class="bi bi-lightning-charge"></i> Buyurtma berish</button>
+        <button class="btn btn-mini" onclick="addToCart()"><i class="bi bi-cart-plus"></i> {{ __('messages.add_to_cart') }}</button>
+        <button class="btn btn-mini" onclick="checkout()"><i class="bi bi-lightning-charge"></i> {{ __('messages.checkout') }}</button>
       </div>
 </div>
 
@@ -104,7 +104,9 @@
   }
   const numPrice = toNumber(price);
   const displayPrice = (numPrice !== null) ? (rate > 0 ? Math.round(numPrice * rate) : numPrice) : '-';
-  headEl.innerHTML = `<div class="fw-semibold mb-1">${title}</div><div class="mb-1">Narx: <span class="chip">${displayPrice}${currencySuffix}</span></div><small class="text-secondary d-block">Do‘kon: ${shop}</small>`;
+  headEl.innerHTML = `<div class=\"fw-semibold mb-1\">${title}</div>`+
+                     `<div class=\"mb-1\">${__('messages.price') ?? 'Narx'}: <span class=\"chip\">${displayPrice}${currencySuffix}</span></div>`+
+                     `<small class=\"text-secondary d-block\">${__('messages.shop') ?? "Do'kon"}: ${shop}</small>`;
 
   // Try different image sources for Taobao products (extended)
   let imgs = pick('images') || pick('imageList') || pick('gallery') || 
@@ -159,7 +161,7 @@
     const btn = document.getElementById('attrsToggle');
     btn.addEventListener('click', ()=>{
       const hidden = attrsBody.classList.toggle('d-none');
-      btn.textContent = hidden ? "Ko'rsatish" : "Yopish";
+      btn.textContent = hidden ? (window.__t_hide || "{{ __('messages.show') }}") : (window.__t_show || "{{ __('messages.hide') }}");
     });
   }
 

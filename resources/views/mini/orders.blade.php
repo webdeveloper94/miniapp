@@ -8,13 +8,13 @@
     <div class="alert alert-info py-2 px-3 mb-3">{{ session('status') }}</div>
   @endif
 
-  <h6 class="mb-3">Buyurtmalar</h6>
+<h6 class="mb-3">{{ __('messages.orders') }}</h6>
   
   @forelse($orders as $order)
     <div class="card mini-card p-3 mb-3">
       <div class="d-flex justify-content-between align-items-start mb-2">
         <div>
-          <div class="fw-semibold">Buyurtma #{{ $order->id }}</div>
+          <div class="fw-semibold">{{ __('messages.order') }} #{{ $order->id }}</div>
           <small class="text-secondary">{{ $order->created_at->format('d.m.Y H:i') }}</small>
         </div>
         <div class="text-end">
@@ -34,8 +34,17 @@
               'delivered' => 'Yetkazib berildi'
             ];
           @endphp
+          @php
+            $statusTL = [
+              'pending' => __('messages.status_pending'),
+              'accepted' => __('messages.status_accepted'),
+              'rejected' => __('messages.status_rejected'),
+              'shipping' => __('messages.status_shipping'),
+              'delivered' => __('messages.status_delivered'),
+            ];
+          @endphp
           <span class="badge bg-{{ $statusColors[$order->status] ?? 'secondary' }}">
-            {{ $statusTexts[$order->status] ?? $order->status }}
+            {{ $statusTL[$order->status] ?? $order->status }}
           </span>
         </div>
       </div>
@@ -91,14 +100,14 @@
       @endphp
 
       <div class="small text-secondary mb-1">
-        Mahsulotlar: {{ number_format($baseTotal, 0, '', ' ') }} so'm
+        {{ __('messages.products_label') }}: {{ number_format($baseTotal, 0, '', ' ') }} so'm
         @if($feeAmount > 0)
-          • Xizmat haqi ({{ rtrim(rtrim(number_format($feePercent, 2, '.', ''), '0'), '.') }}%): {{ number_format($feeAmount, 0, '', ' ') }} so'm
+          • {{ __('messages.service_fee') }} ({{ rtrim(rtrim(number_format($feePercent, 2, '.', ''), '0'), '.') }}%): {{ number_format($feeAmount, 0, '', ' ') }} so'm
         @endif
       </div>
       <div class="d-flex justify-content-between align-items-center mb-2">
         <div class="fw-bold text-primary">
-          Jami: {{ number_format($computedTotal, 0, '', ' ') }} so'm
+          {{ __('messages.total_label') }}: {{ number_format($computedTotal, 0, '', ' ') }} so'm
         </div>
         @if($order->tracking_number)
           <small class="text-secondary">
@@ -117,43 +126,43 @@
         @if($hasPayment)
           <div class="d-grid gap-2">
             <button class="btn btn-warning" disabled>
-              <i class="bi bi-clock me-1"></i> Tasdiqlanishi kutilmoqda
+              <i class="bi bi-clock me-1"></i> {{ __('messages.awaiting_approval') }}
             </button>
           </div>
         @else
           <div class="d-grid gap-2">
             <button class="btn btn-mini" data-bs-toggle="modal" data-bs-target="#paymentModal{{ $order->id }}">
-              <i class="bi bi-credit-card me-1"></i> To'lov qilish
+              <i class="bi bi-credit-card me-1"></i> {{ __('messages.pay') }}
             </button>
           </div>
         @endif
       @elseif($order->status === 'accepted')
         <div class="d-grid gap-2">
           <button class="btn btn-success" disabled>
-            <i class="bi bi-check-circle me-1"></i> Tasdiqlangan
+            <i class="bi bi-check-circle me-1"></i> {{ __('messages.approved') }}
           </button>
         </div>
       @elseif($order->status === 'rejected')
         <div class="d-grid gap-2">
           <button class="btn btn-danger" disabled>
-            <i class="bi bi-x-circle me-1"></i> Rad etilgan
+            <i class="bi bi-x-circle me-1"></i> {{ __('messages.rejected') }}
           </button>
           @if($order->payment && $order->payment->note)
             <small class="text-danger mt-1">
-              <i class="bi bi-info-circle me-1"></i> Sabab: {{ $order->payment->note }}
+              <i class="bi bi-info-circle me-1"></i> {{ __('messages.reason') }}: {{ $order->payment->note }}
             </small>
           @endif
         </div>
       @elseif($order->status === 'shipping')
         <div class="d-grid gap-2">
           <button class="btn btn-info" disabled>
-            <i class="bi bi-truck me-1"></i> Yetkazilmoqda
+            <i class="bi bi-truck me-1"></i> {{ __('messages.shipping_s') }}
           </button>
         </div>
       @elseif($order->status === 'delivered')
         <div class="d-grid gap-2">
           <button class="btn btn-success" disabled>
-            <i class="bi bi-check-circle-fill me-1"></i> Yetkazib berildi
+            <i class="bi bi-check-circle-fill me-1"></i> {{ __('messages.delivered_s') }}
           </button>
         </div>
       @endif
@@ -229,7 +238,7 @@
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="paymentModalLabel{{ $order->id }}">To'lov qilish</h5>
+            <h5 class="modal-title" id="paymentModalLabel{{ $order->id }}">{{ __('messages.payment_title') }}</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <form method="POST" action="{{ route('mini.payment.submit') }}" enctype="multipart/form-data">
@@ -238,38 +247,37 @@
             <div class="modal-body">
               <!-- Admin karta ma'lumotlari -->
               <div class="alert alert-info mb-3">
-                <h6 class="mb-2"><i class="bi bi-credit-card me-1"></i> Admin karta ma'lumotlari:</h6>
-                <div class="fw-bold">Karta raqami: {{ $adminSettings['admin_card_number'] ?? '8600 1234 5678 9012' }}</div>
-                <div class="fw-bold">Karta egasi: {{ $adminSettings['admin_card_owner'] ?? 'Admin User' }}</div>
-                <div class="fw-bold">Bank: {{ $adminSettings['admin_bank'] ?? 'Xalq Banki' }}</div>
+                <h6 class="mb-2"><i class="bi bi-credit-card me-1"></i> {{ __('messages.admin_card_info') }}:</h6>
+                <div class="fw-bold">{{ __('messages.card_number') }}: {{ $adminSettings['admin_card_number'] ?? '8600 1234 5678 9012' }}</div>
+                <div class="fw-bold">{{ __('messages.card_owner') }}: {{ $adminSettings['admin_card_owner'] ?? 'Admin User' }}</div>
+                <div class="fw-bold">{{ __('messages.bank') }}: {{ $adminSettings['admin_bank'] ?? 'Xalq Banki' }}</div>
               </div>
               
               <!-- Qisqa matn -->
               <div class="alert alert-warning mb-3">
                 <small>
                   <i class="bi bi-info-circle me-1"></i>
-                  <strong>Diqqat:</strong> To'lov admin tomonidan tasdiqlanadi, shu sababli biroz vaqt olish mumkin. 
-                  To'lov chekini yuklab, admin bilan bog'laning.
+                  {{ __('messages.payment_wait') }}
                 </small>
               </div>
               
               <div class="mb-3">
-                <label class="form-label">Sizning karta raqamingiz</label>
+                <label class="form-label">{{ __('messages.your_card_number') }}</label>
                 <input type="text" name="card_number" class="form-control" placeholder="8600 1234 5678 9012" required>
-                <small class="text-muted">Qaysi kartadan to'lov qilganingizni kiriting</small>
+                <small class="text-muted">{{ __('messages.which_card_hint') }}</small>
               </div>
               <div class="mb-3">
-                <label class="form-label">To'lov summasi</label>
+                <label class="form-label">{{ __('messages.payment_amount') }}</label>
                 <input type="number" name="amount" class="form-control" value="{{ $order->total_price }}" readonly>
               </div>
               <div class="mb-3">
-                <label class="form-label">To'lov cheki (rasm)</label>
+                <label class="form-label">{{ __('messages.receipt_image') }}</label>
                 <input type="file" name="receipt_image" class="form-control" accept="image/*" required>
-                <small class="text-muted">To'lov chekining rasmini yuklang</small>
+                <small class="text-muted">{{ __('messages.receipt_image') }}</small>
               </div>
               <div class="mb-3">
-                <label class="form-label">Qo'shimcha izoh</label>
-                <textarea name="note" class="form-control" rows="2" placeholder="To'lov haqida qo'shimcha ma'lumot..."></textarea>
+                <label class="form-label">{{ __('messages.note') }}</label>
+                <textarea name="note" class="form-control" rows="2" placeholder="{{ __('messages.note') }}..."></textarea>
               </div>
               
               <!-- Admin aloqa -->
@@ -277,15 +285,15 @@
                 <div class="d-flex align-items-center">
                   <i class="bi bi-telegram me-2 text-primary"></i>
                   <div>
-                    <small class="text-muted">Savollar uchun admin bilan bog'laning:</small>
+                    <small class="text-muted">{{ __('messages.contact_admin') }}:</small>
                     <div class="fw-bold">{{ $adminSettings['admin_telegram'] ?? '@admin_username' }}</div>
                   </div>
                 </div>
               </div>
             </div>
             <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bekor qilish</button>
-              <button type="submit" class="btn btn-mini">To'lovni yuborish</button>
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('messages.cancel') }}</button>
+              <button type="submit" class="btn btn-mini">{{ __('messages.submit_payment') }}</button>
             </div>
           </form>
         </div>
