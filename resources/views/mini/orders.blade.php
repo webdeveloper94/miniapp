@@ -71,9 +71,34 @@
         @endforeach
       @endif
       
+      @php
+        $baseTotal = (float) $order->orderItems->sum('subtotal');
+        $feePercent = (float) ($order->service_fee_percent ?? 0);
+        $feeAmount = ($order->service_fee_amount ?? null);
+        if ((!$feeAmount || $feeAmount <= 0) && $baseTotal > 0) {
+          // Re-calc from current ServiceFee rules if not stored
+          $rule = \App\Models\ServiceFee::getFeeForAmount($baseTotal);
+          if ($rule) {
+            $feePercent = (float) $rule->fee_percentage;
+            $feeAmount = round($baseTotal * $feePercent / 100, 2);
+          } else {
+            $feeAmount = 0;
+          }
+        }
+        $storedTotal = (float) $order->total_price;
+        $expectedTotal = $baseTotal + (float) $feeAmount;
+        $computedTotal = $storedTotal > 0 ? max($storedTotal, $expectedTotal) : $expectedTotal;
+      @endphp
+
+      <div class="small text-secondary mb-1">
+        Mahsulotlar: {{ number_format($baseTotal, 0, '', ' ') }} so'm
+        @if($feeAmount > 0)
+          • Xizmat haqi ({{ rtrim(rtrim(number_format($feePercent, 2, '.', ''), '0'), '.') }}%): {{ number_format($feeAmount, 0, '', ' ') }} so'm
+        @endif
+      </div>
       <div class="d-flex justify-content-between align-items-center mb-2">
         <div class="fw-bold text-primary">
-          Jami: {{ number_format($order->total_price, 0, '', ' ') }} so'm
+          Jami: {{ number_format($computedTotal, 0, '', ' ') }} so'm
         </div>
         @if($order->tracking_number)
           <small class="text-secondary">

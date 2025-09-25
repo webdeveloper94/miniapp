@@ -20,6 +20,7 @@ class SettingController extends Controller
     {
         $data = $request->validate([
             'language' => 'required|in:uz,ru,en',
+            'cny_to_uzs' => 'nullable|numeric|min:0',
         ]);
 
         $setting = AdminSetting::query()->first();

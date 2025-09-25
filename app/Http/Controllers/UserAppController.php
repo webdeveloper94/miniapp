@@ -418,7 +418,7 @@ class UserAppController extends Controller
             $this->ensureFakeTelegramUser();
             
             $data = $request->validate([
-                'product_id' => 'required|string',
+                'product_id' => 'nullable|string',
                 'title' => 'required|string',
                 'price' => 'required|numeric',
                 'quantity' => 'required|integer|min:1',
@@ -429,6 +429,32 @@ class UserAppController extends Controller
                 'phone' => 'required|string|max:20',
                 'address' => 'required|string|max:500',
             ]);
+
+            // If product has variants in session, ensure all selected
+            $product = session('mini_product');
+            $hasVariants = false;
+            $requiredGroups = [];
+            if ($product){
+                $p = $product['data'] ?? $product;
+                $skuProps = $p['skuProps'] ?? [];
+                if (empty($skuProps) && !empty($p['skuBase']['props'])){
+                    $skuProps = $p['skuBase']['props'];
+                }
+                if (!empty($skuProps)){
+                    $hasVariants = true;
+                    foreach ($skuProps as $sp){
+                        $requiredGroups[] = $sp['name'] ?? ($sp['prop'] ?? 'Option');
+                    }
+                }
+            }
+            if ($hasVariants){
+                $selected = json_decode($data['selected_variants'] ?? '{}', true);
+                foreach ($requiredGroups as $g){
+                    if (empty($selected[$g])){
+                        return back()->withErrors(['error' => "Iltimos, variant tanlang: $g"])->withInput();
+                    }
+                }
+            }
 
             // Telegram user ID ni olish va tekshirish
             $telegramUser = session('telegram_user');
@@ -468,7 +494,8 @@ class UserAppController extends Controller
             $unitPrice = (float) $data['price'];
             $qty = (int) $data['quantity'];
             $baseTotal = $unitPrice * $qty;
-            $serviceFeeRule = \App\Models\ServiceFee::getFeeForAmount($unitPrice);
+            // Xizmat haqi narx oralig'i bo'yicha: jami bazaviy summaga qarab aniqlanadi
+            $serviceFeeRule = \App\Models\ServiceFee::getFeeForAmount($baseTotal);
             $servicePercent = $serviceFeeRule?->fee_percentage ?? 0;
             $serviceAmount = round(($baseTotal * $servicePercent) / 100, 2);
 

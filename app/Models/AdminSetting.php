@@ -12,6 +12,7 @@ class AdminSetting extends Model
     protected $fillable = [
         'language',
         'service_fee_percent',
+        'cny_to_uzs',
     ];
 }
 

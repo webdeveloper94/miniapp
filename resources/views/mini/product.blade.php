@@ -72,13 +72,39 @@
 
   const title = (product && (product.title || product.subject || product.name)) || 'Mahsulot';
   const shop = product.shopName || product.seller || product.companyName || '-';
-  let price = product.price || product.minPrice || product.discountPrice || product.referencePrice;
+  // Prefer range first (1688) to avoid large formatted numbers in product.price
+  let price = null;
+  const saleInfo = product.productSaleInfo || {};
+  const priceRangeCandidates = product.priceRange || product.priceRanges || saleInfo.priceRangeList || saleInfo.priceRanges;
+  if (Array.isArray(priceRangeCandidates) && priceRangeCandidates.length){
+    price = priceRangeCandidates[0].price ?? priceRangeCandidates[0].value ?? null;
+  }
+  if (!price) price = product.minPrice || product.discountPrice || product.referencePrice || product.promotionPrice || product.price;
+  const rate = {{ (float) optional(\App\Models\AdminSetting::first())->cny_to_uzs ?? 0 }};
+  const currencySuffix = rate > 0 ? " so'm" : ' yuan';
   const sale = product.productSaleInfo || {};
   const pr = product.priceRange || product.priceRanges || sale.priceRanges || sale.priceRangeList;
   if (!price && Array.isArray(pr) && pr.length){
     const first = pr[0].price ?? pr[0].value; const last = pr.at(-1).price ?? pr.at(-1).value; price = first && last ? `${first} ~ ${last}` : (first ?? last);
   }
-  headEl.innerHTML = `<div class="fw-semibold mb-1">${title}</div><div class="mb-1">Narx: <span class="chip">${price ?? '-'}</span></div><small class="text-secondary d-block">Do‘kon: ${shop}</small>`;
+  function toNumber(v){
+    if (v === undefined || v === null) return null;
+    if (typeof v === 'number') return v;
+    const n = parseFloat(String(v).replace(/[^\d.]/g,'').replace(/\.(?=.*\.)/g,''));
+    return isNaN(n) ? null : n;
+  }
+  // If price still empty, try ranges
+  if (!price){
+    const sale = product.productSaleInfo || {};
+    const pr = product.priceRange || product.priceRanges || sale.priceRanges || sale.priceRangeList;
+    if (Array.isArray(pr) && pr.length){
+      const first = pr[0].price ?? pr[0].value;
+      price = first ?? null;
+    }
+  }
+  const numPrice = toNumber(price);
+  const displayPrice = (numPrice !== null) ? (rate > 0 ? Math.round(numPrice * rate) : numPrice) : '-';
+  headEl.innerHTML = `<div class="fw-semibold mb-1">${title}</div><div class="mb-1">Narx: <span class="chip">${displayPrice}${currencySuffix}</span></div><small class="text-secondary d-block">Do‘kon: ${shop}</small>`;
 
   // Try different image sources for Taobao products (extended)
   let imgs = pick('images') || pick('imageList') || pick('gallery') || 
@@ -146,6 +172,9 @@
       values: (p.values || p.items || []).map(v => (typeof v === 'string') ? v : (v.name || v.value || v.valueName || v.valueDisplayName)).filter(Boolean)
     }));
   }
+
+  // Global selections object (used by addToCart/checkout)
+  let selections = {};
   if ((!skuProps || !skuProps.length) && Array.isArray(product.productSkuInfos)) {
     const byName = {};
     product.productSkuInfos.forEach(sku => {
@@ -172,7 +201,7 @@
       }).join(' ');
       return `<div class="mb-2"><div class="small text-secondary mb-1">${group}</div><div class="d-flex flex-wrap gap-2">${chips}</div></div>`;
     }).join('');
-    const selections = {};
+    // selections is defined globally above
     variantsBody.addEventListener('click', (e)=>{
       const el = e.target.closest('.chip-select');
       if (!el) return;
@@ -201,6 +230,16 @@
 
   // Savatga qo'shish funksiyasi
   function addToCart() {
+    // Enforce variant selection if variants exist
+    if (skuProps && skuProps.length){
+      const requiredGroups = skuProps.map(p => (p.name || p.prop || 'Option'));
+      for (const g of requiredGroups){
+        if (!selections[g]){
+          alert(`Iltimos, variant tanlang: ${g}`);
+          return;
+        }
+      }
+    }
     const productId = '{{ $offerId }}' || 'unknown';
     const title = product.subject || product.title || 'Mahsulot';
     const price = product.price || product.minPrice || 0;
@@ -243,6 +282,16 @@
 
   // Buyurtma berish funksiyasi
   function checkout() {
+    // Enforce variant selection if variants exist
+    if (skuProps && skuProps.length){
+      const requiredGroups = skuProps.map(p => (p.name || p.prop || 'Option'));
+      for (const g of requiredGroups){
+        if (!selections[g]){
+          alert(`Iltimos, variant tanlang: ${g}`);
+          return;
+        }
+      }
+    }
     window.location.href = '{{ route("mini.checkout") }}';
   }
 </script>

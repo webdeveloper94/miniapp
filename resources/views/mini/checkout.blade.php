@@ -8,6 +8,32 @@
     <div class="alert alert-info py-2 px-3 mb-3">{{ session('status') }}</div>
   @endif
 
+  @php
+    $raw = session('mini_product');
+    $p = $raw['data'] ?? $raw ?? [];
+    $unitRaw = $p['price'] ?? ($p['minPrice'] ?? ($p['discountPrice'] ?? ($p['referencePrice'] ?? ($p['promotionPrice'] ?? null))));
+    if ($unitRaw === null) {
+        if (!empty($p['productSaleInfo']['priceRangeList'][0]['price'])) {
+            $unitRaw = $p['productSaleInfo']['priceRangeList'][0]['price'];
+        } elseif (!empty($p['productSaleInfo']['priceRangeList'][0]['value'])) {
+            $unitRaw = $p['productSaleInfo']['priceRangeList'][0]['value'];
+        } elseif (!empty($p['priceRange'][0]['price'])) {
+            $unitRaw = $p['priceRange'][0]['price'];
+        } elseif (!empty($p['priceRanges'][0]['price'])) {
+            $unitRaw = $p['priceRanges'][0]['price'];
+        }
+    }
+    // sanitize numeric
+    $unit = 0;
+    if ($unitRaw !== null) {
+        $unit = (float) filter_var(is_string($unitRaw) ? preg_replace('/[^\d.]/', '', $unitRaw) : $unitRaw, FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION);
+    }
+    $rate = optional(\App\Models\AdminSetting::first())->cny_to_uzs ?? 0;
+    $unitUzs = $rate > 0 ? ($unit * $rate) : $unit;
+    $serviceRule = \App\Models\ServiceFee::getFeeForAmount($unitUzs);
+    $servicePercent = $serviceRule?->fee_percentage ?? 0;
+  @endphp
+
   <div class="card mini-card p-3 mb-3">
     <h6 class="mb-3">Mahsulot ma'lumotlari</h6>
     
@@ -25,19 +51,7 @@
       <div class="flex-grow-1">
         <h6 class="mb-1">{{ $product['data']['subject'] ?? $product['subject'] ?? 'Mahsulot' }}</h6>
         <div class="text-secondary small mb-2">
-          @php
-            $price = null;
-            if (isset($product['data']['productSaleInfo']['priceRangeList'][0]['price'])) {
-              $price = $product['data']['productSaleInfo']['priceRangeList'][0]['price'];
-            } elseif (isset($product['productSaleInfo']['priceRangeList'][0]['price'])) {
-              $price = $product['productSaleInfo']['priceRangeList'][0]['price'];
-            }
-          @endphp
-          @if($price)
-            <span class="fw-semibold">{{ number_format($price, 0, '', ' ') }} so'm</span>
-          @else
-            <span class="fw-semibold">Narx ma'lum emas</span>
-          @endif
+          <span class="fw-semibold">{{ number_format($unitUzs, 0, '', ' ') }} {{ $rate>0 ? "so'm" : 'yuan' }}</span>
         </div>
       </div>
     </div>
@@ -45,9 +59,9 @@
 
   <form method="POST" action="{{ route('mini.order.create') }}">
     @csrf
-    <input type="hidden" name="product_id" value="{{ $offerId }}">
+    <input type="hidden" name="product_id" value="{{ $offerId ?? ($product['data']['itemId'] ?? $product['itemId'] ?? '') }}">
     <input type="hidden" name="title" value="{{ $product['data']['subject'] ?? $product['subject'] ?? 'Mahsulot' }}">
-    <input type="hidden" name="price" value="{{ $product['data']['productSaleInfo']['priceRangeList'][0]['price'] ?? $product['productSaleInfo']['priceRangeList'][0]['price'] ?? 0 }}">
+    <input type="hidden" name="price" value="{{ (float) ($rate>0 ? $unit*$rate : $unit) }}">
     <input type="hidden" name="selected_variants" value="{{ json_encode([]) }}">
 
     <div class="card mini-card p-3 mb-3">
@@ -102,7 +116,7 @@
       
       <div class="d-flex justify-content-between align-items-center mb-2">
         <span>Mahsulot narxi:</span>
-        <span id="unit-price">{{ number_format(session('mini_product.data.price') ?? session('mini_product.data.minPrice'), 0, '', ' ') }} so'm</span>
+        <span id="unit-price">{{ number_format($unitUzs, 0, '', ' ') }} {{ $rate>0 ? "so'm" : 'yuan' }}</span>
       </div>
       
       <div class="d-flex justify-content-between align-items-center mb-2">
@@ -110,11 +124,14 @@
         <span id="quantity-display">1 dona</span>
       </div>
       
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <span>Xizmat haqi ({{ (float) $servicePercent }}%):</span>
+        <span id="service-fee">0 so'm</span>
+      </div>
       <hr>
-      
       <div class="d-flex justify-content-between align-items-center">
         <span class="fw-semibold">Jami:</span>
-        <span class="fw-bold text-primary" id="total-price">{{ number_format(session('mini_product.data.price') ?? session('mini_product.data.minPrice'), 0, '', ' ') }} so'm</span>
+        <span class="fw-bold text-primary" id="total-price">{{ number_format($unit, 0, '', ' ') }} so'm</span>
       </div>
     </div>
 
@@ -134,18 +151,19 @@ document.addEventListener('DOMContentLoaded', function() {
   const quantityInput = document.querySelector('input[name="quantity"]');
   const quantityDisplay = document.getElementById('quantity-display');
   const totalPrice = document.getElementById('total-price');
-  const unitPrice = {{ isset($product['data']['productSaleInfo']['priceRangeList'][0]['price']) ? $product['data']['productSaleInfo']['priceRangeList'][0]['price'] : (isset($product['productSaleInfo']['priceRangeList'][0]['price']) ? $product['productSaleInfo']['priceRangeList'][0]['price'] : 0) }};
+  const unitPrice = {{ (float) $unitUzs }};
+  const servicePercent = {{ (float) $servicePercent }};
+  const serviceFeeEl = document.getElementById('service-fee');
 
   function updateTotal() {
     const quantity = parseInt(quantityInput.value) || 1;
     const base = unitPrice * quantity;
-    // Service fee preview (client-side only): use range from backend session if available later
-    let feePercent = {{ (int) (\App\Models\ServiceFee::getFeeForAmount( (session('mini_product.data.price') ?? session('mini_product.data.minPrice') ?? 0))?->fee_percentage ?? 0) }};
-    const feeAmount = Math.round(base * feePercent / 100);
+    const feeAmount = Math.round(base * servicePercent / 100);
     const total = base + feeAmount;
     
     quantityDisplay.textContent = quantity + ' dona';
     totalPrice.textContent = new Intl.NumberFormat('uz-UZ').format(total) + ' so\'m';
+    serviceFeeEl.textContent = new Intl.NumberFormat('uz-UZ').format(feeAmount) + ' so\'m';
   }
 
   quantityInput.addEventListener('input', updateTotal);

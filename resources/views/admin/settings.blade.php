@@ -23,6 +23,14 @@
             @endforeach
           </select>
         </div>
+        <div class="col-12 col-md-6">
+          <label class="form-label">Valyuta kursi (1 CNY → UZS)</label>
+          <div class="input-group">
+            <input class="form-control" type="number" step="0.01" min="0" name="cny_to_uzs" value="{{ old('cny_to_uzs', $setting->cny_to_uzs ?? '') }}" placeholder="Masalan: 1700.00">
+            <span class="input-group-text">UZS</span>
+          </div>
+          <div class="form-text">Mahsulot narxlari ushbu kurs bo‘yicha so‘mda ko‘rsatiladi.</div>
+        </div>
         <div class="col-12">
           <button class="btn btn-primary" type="submit"><i class="bi bi-save"></i> Saqlash</button>
         </div>
