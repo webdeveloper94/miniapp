@@ -185,6 +185,7 @@ class UserAppController extends Controller
                     'read_timeout' => 20,
                     'verify' => false,
                     'http_errors' => false,
+                    'cookies' => new \GuzzleHttp\Cookie\CookieJar(),
                     'headers' => [
                         'User-Agent' => $conf['ua'],
                         'Accept-Language' => 'zh-CN,zh;q=0.9,en;q=0.8',
@@ -200,6 +201,14 @@ class UserAppController extends Controller
                 $eff = $res->getHeader('X-Guzzle-Effective-Url');
                 if (!empty($eff)) return $eff[0];
                 $body = (string) $res->getBody();
+                // Meta refresh redirect
+                if (preg_match('~<meta[^>]+http-equiv=["\']refresh["\'][^>]+content=["\']\d+;\s*url=([^"\']+)["\']~i', $body, $mm)) {
+                    return html_entity_decode($mm[1]);
+                }
+                // JS location redirects
+                if (preg_match('~location\.(?:href|replace)\(["\']([^"\']+)["\']\)~i', $body, $jm)) {
+                    return $jm[1];
+                }
                 // Handle 1688 QR short page: wireless1688://...url=<encoded>
                 if (preg_match('~wireless1688://[^\s]+url=([^&\s]+)~i', $body, $wm)) {
                     $decoded = urldecode($wm[1]);
@@ -207,6 +216,10 @@ class UserAppController extends Controller
                 }
                 if (preg_match('~https?://(?:item\.taobao\.com|detail\.tmall\.com|detail\.1688\.com|m\.1688\.com/offer/|m\.1688\.com/detail/)[^\s\"\']+~i', $body, $m)) {
                     return $m[0];
+                }
+                // Last resort: extract offerId pattern from raw
+                if (preg_match("~offerId[=:\\\"'](\\d{6,})~i", $body, $oid)) {
+                    return 'https://m.1688.com/offer/' . $oid[1] . '.html';
                 }
             }
             return null;
