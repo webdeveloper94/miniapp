@@ -22,7 +22,7 @@
     <div id="variantsBody"></div>
   </div>
 
-  @if(!empty($offerId))
+  <!-- @if(!empty($offerId))
   <div class="card mini-card p-3 mb-3">
     <h6 class="mb-2">Xitoy ichki yetkazib berish (freight)ni tekshirish</h6>
     <form method="POST" action="{{ route('mini.freight') }}" class="row g-2">
@@ -35,7 +35,7 @@
       <div class="col-12"><button class="btn btn-mini w-100" type="submit"><i class="bi bi-truck"></i> Freight hisoblash</button></div>
     </form>
   </div>
-  @endif
+  @endif -->
 
       <div class="d-grid gap-2">
         <button class="btn btn-mini" onclick="addToCart()"><i class="bi bi-cart-plus"></i> Savatga qo'shish</button>
@@ -235,14 +235,15 @@
       const requiredGroups = skuProps.map(p => (p.name || p.prop || 'Option'));
       for (const g of requiredGroups){
         if (!selections[g]){
-          alert(`Iltimos, variant tanlang: ${g}`);
+          if (window.showMiniToast) showMiniToast(`Iltimos, variant tanlang: ${g}`, 'warning');
           return;
         }
       }
     }
     const productId = '{{ $offerId }}' || 'unknown';
     const title = product.subject || product.title || 'Mahsulot';
-    const price = product.price || product.minPrice || 0;
+    const basePrice = (typeof numPrice === 'number' && !isNaN(numPrice)) ? numPrice : 0;
+    const price = rate > 0 ? Math.round(basePrice * rate) : basePrice;
     const imageUrl = (product.productImage && product.productImage.images && product.productImage.images[0]) || '';
     const quantity = 1; // Default miqdor
     
@@ -271,12 +272,12 @@
     })
     .then(response => response.text())
     .then(() => {
-      // Muvaffaqiyatli qo'shildi
-      alert('Mahsulot savatga qo\'shildi!');
+      // Muvaffaqiyatli qo'shildi - toast
+      if (window.showMiniToast) showMiniToast('Mahsulot savatga qo\'shildi!', 'success');
     })
     .catch(error => {
       console.error('Xato:', error);
-      alert('Xato yuz berdi, qayta urinib ko\'ring');
+      if (window.showMiniToast) showMiniToast('Xato yuz berdi, qayta urinib ko\'ring', 'danger');
     });
   }
 
@@ -287,7 +288,7 @@
       const requiredGroups = skuProps.map(p => (p.name || p.prop || 'Option'));
       for (const g of requiredGroups){
         if (!selections[g]){
-          alert(`Iltimos, variant tanlang: ${g}`);
+          if (window.showMiniToast) showMiniToast(`Iltimos, variant tanlang: ${g}`, 'warning');
           return;
         }
       }

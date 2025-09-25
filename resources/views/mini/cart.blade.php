@@ -38,11 +38,7 @@
             </div>
             
             <div class="d-flex align-items-center gap-2">
-              <form method="POST" action="{{ route('mini.cart.update-quantity') }}" class="d-inline">
-                @csrf
-                <input type="hidden" name="product_key" value="{{ $key }}">
-                <input type="number" name="quantity" value="{{ $item['quantity'] }}" min="1" max="99" class="form-control mini-input" style="width:60px" onchange="this.form.submit()">
-              </form>
+              
               
               <form method="POST" action="{{ route('mini.cart.remove') }}" class="d-inline">
                 @csrf
@@ -73,7 +69,7 @@
       </div>
       
       <div class="d-grid gap-2">
-        <button class="btn btn-mini"><i class="bi bi-lightning-charge"></i> Buyurtma berish</button>
+        <!-- <button class="btn btn-mini"><i class="bi bi-lightning-charge"></i> Buyurtma berish</button> -->
         <a href="{{ route('mini.home') }}" class="btn btn-outline-primary"><i class="bi bi-arrow-left"></i> Davom etish</a>
       </div>
     </div>

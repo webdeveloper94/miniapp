@@ -66,16 +66,7 @@
   </div>
 
   <div class="card mini-card p-3">
-    <h6 class="mb-2">So‘nggi to‘lovlar</h6>
-    @forelse($payments as $p)
-      <div class="d-flex justify-content-between py-1">
-        <div>#{{ $p->id }} — {{ $p->status }}</div>
-        <div>{{ number_format($p->amount,0,'',' ') }} {{ $p->currency }}</div>
-      </div>
-    @empty
-      <div class="text-secondary">Ma'lumot yo‘q</div>
-    @endforelse
-  </div>
+    <br>
 </div>
 @endsection
 
