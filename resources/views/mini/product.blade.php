@@ -80,12 +80,20 @@
   }
   headEl.innerHTML = `<div class="fw-semibold mb-1">${title}</div><div class="mb-1">Narx: <span class="chip">${price ?? '-'}</span></div><small class="text-secondary d-block">Do‘kon: ${shop}</small>`;
 
-  // Try different image sources for Taobao products
+  // Try different image sources for Taobao products (extended)
   let imgs = pick('images') || pick('imageList') || pick('gallery') || 
              (product && product.productImage && (product.productImage.images || product.productImage.imageList)) || 
              pick('productImage') ||
              (product && product.itemImages && product.itemImages.map(img => img.url)) ||
              (product && product.images && product.images.map(img => img.url || img)) ||
+             (product && product.small_images && (product.small_images.string || product.small_images)) ||
+             (product && product.topImages) ||
+             (product && product.detailImages) ||
+             (product && product.descImgs) ||
+             (product && product.picsPath) ||
+             (product && product.imageUrls) ||
+             (product && product.mainImage && [product.mainImage]) ||
+             (product && product.mainPic && [product.mainPic]) ||
              (product && product.picUrl && [product.picUrl]) ||
              (product && product.image && [product.image]);
   
@@ -130,8 +138,14 @@
   }
 
   // Build variants from skuProps or derive from productSkuInfos (Taobao support)
-  let skuProps = product.skuProps || product.skuAttributes || product.skuPropertyList || 
-                 product.skuProps || product.skuAttributes || product.skuPropertyList || [];
+  let skuProps = product.skuProps || product.skuAttributes || product.skuPropertyList || [];
+  // Taobao specific structure: skuBase.props
+  if ((!skuProps || !skuProps.length) && product.skuBase && Array.isArray(product.skuBase.props)) {
+    skuProps = product.skuBase.props.map(p => ({
+      name: p.name || p.prop || 'Option',
+      values: (p.values || p.items || []).map(v => (typeof v === 'string') ? v : (v.name || v.value || v.valueName || v.valueDisplayName)).filter(Boolean)
+    }));
+  }
   if ((!skuProps || !skuProps.length) && Array.isArray(product.productSkuInfos)) {
     const byName = {};
     product.productSkuInfos.forEach(sku => {

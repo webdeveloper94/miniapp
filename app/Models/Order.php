@@ -16,6 +16,8 @@ class Order extends Model
         'status',
         'tracking_number',
         'total_price',
+        'service_fee_percent',
+        'service_fee_amount',
         'first_name',
         'last_name',
         'phone',

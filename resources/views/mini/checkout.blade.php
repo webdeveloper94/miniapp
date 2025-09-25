@@ -138,7 +138,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function updateTotal() {
     const quantity = parseInt(quantityInput.value) || 1;
-    const total = unitPrice * quantity;
+    const base = unitPrice * quantity;
+    // Service fee preview (client-side only): use range from backend session if available later
+    let feePercent = {{ (int) (\App\Models\ServiceFee::getFeeForAmount( (session('mini_product.data.price') ?? session('mini_product.data.minPrice') ?? 0))?->fee_percentage ?? 0) }};
+    const feeAmount = Math.round(base * feePercent / 100);
+    const total = base + feeAmount;
     
     quantityDisplay.textContent = quantity + ' dona';
     totalPrice.textContent = new Intl.NumberFormat('uz-UZ').format(total) + ' so\'m';

@@ -124,6 +124,9 @@ class UserAppController extends Controller
                 if (isset($product['_error'])) {
                     return back()->withErrors(['api' => 'Taobao mahsulot topilmadi. Iltimos, boshqa linkni sinab ko\'ring. API xatosi: ' . $product['status']]);
                 }
+
+                // Normalize Taobao payload to our common structure used by the mini product page
+                $product = ['data' => $this->normalizeTaobaoProduct(is_array($product) ? $product : (array) $product)];
             } else {
                 return back()->withErrors(['api' => 'Taobao linkida mahsulot ID topilmadi. Iltimos, to\'liq linkni kiriting.']);
             }
@@ -147,6 +150,106 @@ class UserAppController extends Controller
         $offerId = session('mini_offerId');
         abort_unless($product, 404);
         return view('mini.product', compact('product', 'link', 'offerId'));
+    }
+
+    /**
+     * Taobao API javobini mini product sahifasi ishlata oladigan umumiy formatga keltiradi.
+     * Kutilgan format: title/subject, price/minPrice, productImage.images[], shopName, skuProps[]
+     */
+    private function normalizeTaobaoProduct(array $raw): array
+    {
+        // Many vendors wrap data in 'data' or 'result' keys
+        $p = $raw['data'] ?? $raw['result'] ?? $raw;
+
+        // Some responses nest 'item'
+        $item = $p['item'] ?? $p['itemInfo'] ?? [];
+        $title = $p['title'] ?? $p['subject'] ?? ($item['title'] ?? ($p['item_title'] ?? 'Mahsulot'));
+        $shop = $p['shopName'] ?? ($p['seller'] ?? ($p['sellerNick'] ?? ($p['shop'] ?? '-')));
+
+        // Price: try several common places
+        $price = $p['price'] ?? $p['minPrice'] ?? $p['discountPrice'] ?? ($item['price'] ?? null);
+
+        // Images: merge from known locations (including sample schema)
+        $images = [];
+        $candidates = [];
+        if (!empty($p['images'])) $candidates[] = $p['images'];
+        if (!empty($p['imageList'])) $candidates[] = $p['imageList'];
+        if (!empty($p['gallery'])) $candidates[] = $p['gallery'];
+        if (!empty($p['picUrls'])) $candidates[] = $p['picUrls'];
+        if (!empty($p['mainImageUrl'])) $candidates[] = [$p['mainImageUrl']];
+        if (!empty($p['propertyImageList'])) $candidates[] = array_map(function ($i) { return $i['imageUrl'] ?? null; }, (array) $p['propertyImageList']);
+        if (!empty($p['skuList'])) $candidates[] = array_map(function ($s) { return $s['picUrl'] ?? null; }, (array) $p['skuList']);
+        if (!empty($p['detailImages'])) $candidates[] = $p['detailImages'];
+        if (!empty($p['itemImages'])) $candidates[] = array_map(function ($i) { return $i['url'] ?? $i; }, (array) $p['itemImages']);
+        if (!empty($item['images'])) $candidates[] = (array) $item['images'];
+        if (!empty($p['picUrl'])) $candidates[] = [$p['picUrl']];
+        if (!empty($p['image'])) $candidates[] = [$p['image']];
+        foreach ($candidates as $arr) {
+            foreach ((array) $arr as $u) {
+                $u = is_string($u) ? $u : ($u['url'] ?? ($u['fullPathImageURI'] ?? ($u['imageUrl'] ?? '')));
+                if (!$u) continue;
+                // Fix protocol-relative urls
+                if (str_starts_with($u, '//')) $u = 'https:' . $u;
+                $images[] = $u;
+            }
+        }
+        // Pull images from rich HTML description if present
+        if (!empty($p['description']) && is_string($p['description'])) {
+            if (preg_match_all('~src=\"(.*?)\"~', $p['description'], $m)) {
+                foreach ($m[1] as $u) {
+                    if (str_starts_with($u, '//')) $u = 'https:' . $u;
+                    $images[] = $u;
+                }
+            }
+        }
+        $images = array_values(array_unique(array_filter($images)));
+
+        // skuProps: Taobao often uses skuBase.props
+        $skuProps = [];
+        $skuBase = $p['skuBase'] ?? $p['sku'] ?? [];
+        $props = $skuBase['props'] ?? $skuBase['skuProps'] ?? $p['skuProps'] ?? [];
+        foreach ((array) $props as $prop) {
+            $name = $prop['name'] ?? ($prop['prop'] ?? 'Option');
+            $values = [];
+            $pv = $prop['values'] ?? $prop['value'] ?? $prop['items'] ?? $prop['vids'] ?? [];
+            foreach ((array) $pv as $val) {
+                if (is_string($val)) { $values[] = $val; continue; }
+                $values[] = $val['name'] ?? ($val['value'] ?? ($val['valueName'] ?? ($val['valueDisplayName'] ?? null)));
+            }
+            $values = array_values(array_filter($values));
+            if ($values) {
+                $skuProps[] = ['name' => $name, 'values' => $values];
+            }
+        }
+
+        // If still empty, derive from provided skuList (sample schema)
+        if (empty($skuProps) && !empty($p['skuList']) && is_array($p['skuList'])) {
+            $map = [];
+            foreach ($p['skuList'] as $sku) {
+                foreach (($sku['properties'] ?? []) as $pr) {
+                    $name = $pr['propName'] ?? ($pr['name'] ?? 'Option');
+                    $val = $pr['valueName'] ?? ($pr['value'] ?? null);
+                    if (!$val) continue;
+                    $map[$name] = $map[$name] ?? [];
+                    $map[$name][$val] = true;
+                }
+            }
+            foreach ($map as $name => $vals) {
+                $skuProps[] = ['name' => $name, 'values' => array_keys($vals)];
+            }
+        }
+
+        return [
+            'title' => $title,
+            'subject' => $title,
+            'shopName' => $shop,
+            'price' => $price,
+            'minPrice' => $price,
+            'productImage' => ['images' => $images],
+            'skuProps' => $skuProps,
+            // keep some raw fields for debugging if needed
+            '_source' => 'taobao',
+        ];
     }
 
     public function orders()
@@ -361,13 +464,23 @@ class UserAppController extends Controller
                 session(['telegram_user' => $fakeUser]);
             }
 
+            // Service fee calculation
+            $unitPrice = (float) $data['price'];
+            $qty = (int) $data['quantity'];
+            $baseTotal = $unitPrice * $qty;
+            $serviceFeeRule = \App\Models\ServiceFee::getFeeForAmount($unitPrice);
+            $servicePercent = $serviceFeeRule?->fee_percentage ?? 0;
+            $serviceAmount = round(($baseTotal * $servicePercent) / 100, 2);
+
             // Buyurtma yaratish
             $order = Order::create([
                 'user_id' => $userId,
                 'product_url' => session('mini_product_link', ''),
                 'source_platform' => '1688',
                 'status' => 'pending',
-                'total_price' => $data['price'] * $data['quantity'],
+                'total_price' => $baseTotal + $serviceAmount,
+                'service_fee_percent' => $servicePercent,
+                'service_fee_amount' => $serviceAmount,
                 'tracking_number' => null,
                 'first_name' => $data['first_name'],
                 'last_name' => $data['last_name'],
@@ -400,7 +513,7 @@ class UserAppController extends Controller
                 $payment = Payment::create([
                     'user_id' => $userId,
                     'order_id' => $order->id,
-                    'amount' => $data['price'] * $data['quantity'],
+                    'amount' => $baseTotal + $serviceAmount,
                     'currency' => 'UZS',
                     'status' => 'pending',
                     'payment_method' => 'card',
