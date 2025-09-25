@@ -44,6 +44,12 @@ class PaymentController extends Controller
         $payment->update(['status' => 'rejected', 'note' => $data['note'] ?? null]);
         return back()->with('status', 'To\'lov rad etildi');
     }
+
+    public function show(Payment $payment)
+    {
+        $payment->load(['user', 'order.orderItems']);
+        return view('admin.payments.show', compact('payment'));
+    }
 }
 
 

@@ -42,6 +42,29 @@
     </form>
   </div>
 
+  <div class="card mini-card p-3 mb-3">
+    <h6 class="mb-2">Parolni o'zgartirish</h6>
+    <form method="POST" action="{{ route('mini.auth.changePassword') }}" class="row g-2">
+      @csrf
+      <div class="col-12">
+        <label class="form-label">Eski parol</label>
+        <input class="form-control mini-input" type="password" name="old_password" placeholder="Eski parol">
+        <div class="form-text">Agar avval parol qo'ygan bo'lsangiz, eski parolni kiriting</div>
+      </div>
+      <div class="col-12">
+        <label class="form-label">Yangi parol</label>
+        <input class="form-control mini-input" type="password" name="new_password" required minlength="4" maxlength="50" placeholder="Yangi parol">
+      </div>
+      <div class="col-12">
+        <label class="form-label">Yangi parol (tasdiqlash)</label>
+        <input class="form-control mini-input" type="password" name="new_password_confirmation" required minlength="4" maxlength="50" placeholder="Yangi parolni tasdiqlang">
+      </div>
+      <div class="col-12">
+        <button class="btn btn-mini w-100" type="submit"><i class="bi bi-shield-lock"></i> Parolni yangilash</button>
+      </div>
+    </form>
+  </div>
+
   <div class="card mini-card p-3">
     <h6 class="mb-2">So‘nggi to‘lovlar</h6>
     @forelse($payments as $p)

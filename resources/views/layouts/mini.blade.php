@@ -56,6 +56,57 @@
   </nav>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  @php
+    $needsLoginPassword = false;
+    if (session('telegram_user')) {
+      $uid = session('telegram_user.id');
+      try {
+        $u = $uid ? \App\Models\User::find($uid) : null;
+        $needsLoginPassword = $u && empty($u->login_password);
+      } catch (\Throwable $e) {
+        $needsLoginPassword = false;
+      }
+    }
+  @endphp
+
+  @if($needsLoginPassword)
+  <div class="modal show" id="miniLoginPasswordModal" tabindex="-1" style="display:block; background: rgba(0,0,0,.6);">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Profil himoyasi</h5>
+        </div>
+        <div class="modal-body">
+          <p class="mb-3">Iltimos, profilni tiklash uchun parol yarating yoki mavjud profilga kirish uchun parolingizni kiriting.</p>
+          <div class="card mini-card p-3 mb-3">
+            <h6 class="mb-2">Yangi parol o'rnatish</h6>
+            <form method="POST" action="{{ route('mini.auth.setPassword') }}" class="d-grid gap-2">
+              @csrf
+              <input class="form-control mini-input" type="password" name="password" minlength="4" maxlength="50" placeholder="Yangi parol" required>
+              <button class="btn btn-mini" type="submit">Parolni saqlash</button>
+            </form>
+          </div>
+          <div class="card mini-card p-3">
+            <h6 class="mb-2">Eski profilga kirish</h6>
+            <form method="POST" action="{{ route('mini.auth.recover') }}" class="d-grid gap-2">
+              @csrf
+              <input class="form-control mini-input" type="text" name="username" minlength="3" maxlength="50" placeholder="@username" required>
+              <input class="form-control mini-input" type="password" name="password" minlength="4" maxlength="50" placeholder="Parol" required>
+              <button class="btn btn-outline-primary" type="submit">Profilni tiklash</button>
+            </form>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <small class="text-muted">Parol faqat profilni tiklash uchun ishlatiladi.</small>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    // Block page scrolling when modal is forced
+    document.body.style.overflow = 'hidden';
+  </script>
+  @endif
 </body>
 </html>
 
