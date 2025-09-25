@@ -85,6 +85,18 @@ class UserAppController extends Controller
     {
         $data = $request->validate(['link' => 'required|string']);
         $link = $data['link'];
+        $originalLink = $link;
+
+        // 1) Agar qisqa Taobao link bo'lsa, uni to'liq manzilga yechib olishga urinib ko'ramiz
+        if ($this->looksLikeShortUrl($link)) {
+            $resolved = $this->resolveFinalUrl($link);
+            if (!empty($resolved)) {
+                $link = $resolved;
+                \Log::info('Short URL resolved', ['original' => $originalLink, 'resolved' => $link]);
+            } else {
+                \Log::warning('Short URL resolve failed, will try shortUrl API fallback', ['url' => $link]);
+            }
+        }
         // Detect platform and fetch accordingly
         $offerIdForSession = null;
         $isTaobao = preg_match('~(taobao\.com|tmall\.com|item\.taobao|detail\.tmall)~i', $link);
@@ -128,7 +140,12 @@ class UserAppController extends Controller
                 // Normalize Taobao payload to our common structure used by the mini product page
                 $product = ['data' => $this->normalizeTaobaoProduct(is_array($product) ? $product : (array) $product)];
             } else {
-                return back()->withErrors(['api' => 'Taobao linkida mahsulot ID topilmadi. Iltimos, to\'liq linkni kiriting.']);
+                // 2) Agar item_id topilmasa, qisqa link endpointidan foydalanamiz
+                $product = $api->taobaoProductDetailByShortUrl($originalLink);
+                if (isset($product['_error'])) {
+                    return back()->withErrors(['api' => "Taobao short-url yechilmadi. Xato: ".$product['status']]);
+                }
+                $product = ['data' => $this->normalizeTaobaoProduct((array) $product)];
             }
         } else {
             return back()->withErrors(['api' => 'Qo\'llab-quvvatlanmaydigan link. Faqat 1688.com yoki Taobao.com linklarini kiriting.']);
@@ -141,6 +158,62 @@ class UserAppController extends Controller
         // Persist product in session for redirect safety
         session(['mini_product' => $product, 'mini_product_link' => $link, 'mini_offerId' => $offerIdForSession]);
         return redirect()->route('mini.product');
+    }
+
+    private function looksLikeShortUrl(string $url): bool
+    {
+        return (bool) preg_match('~(e\.tb\.cn|m\.tb\.cn|s\.click\.taobao\.com|tb\.cn|t\.cn|qr\.1688\.com)~i', $url);
+    }
+
+    private function resolveFinalUrl(string $url): ?string
+    {
+        try {
+            $attempts = [
+                ['ua' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'scheme' => null],
+                ['ua' => 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148', 'scheme' => null],
+                ['ua' => 'Mozilla/5.0 (Linux; Android 12; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Mobile Safari/537.36', 'scheme' => 'http'],
+            ];
+            foreach ($attempts as $conf) {
+                $target = $url;
+                if ($conf['scheme']) {
+                    $target = preg_replace('~^https://~i', $conf['scheme'] . '://', $target);
+                }
+                $client = new \GuzzleHttp\Client([
+                    'allow_redirects' => true,
+                    'timeout' => 20,
+                    'connect_timeout' => 8,
+                    'read_timeout' => 20,
+                    'verify' => false,
+                    'http_errors' => false,
+                    'headers' => [
+                        'User-Agent' => $conf['ua'],
+                        'Accept-Language' => 'zh-CN,zh;q=0.9,en;q=0.8',
+                        'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                        'Referer' => 'https://m.1688.com/'
+                    ]
+                ]);
+                try {
+                    $res = $client->get($target);
+                } catch (\Throwable $inner) {
+                    continue; // try next attempt
+                }
+                $eff = $res->getHeader('X-Guzzle-Effective-Url');
+                if (!empty($eff)) return $eff[0];
+                $body = (string) $res->getBody();
+                // Handle 1688 QR short page: wireless1688://...url=<encoded>
+                if (preg_match('~wireless1688://[^\s]+url=([^&\s]+)~i', $body, $wm)) {
+                    $decoded = urldecode($wm[1]);
+                    return $decoded;
+                }
+                if (preg_match('~https?://(?:item\.taobao\.com|detail\.tmall\.com|detail\.1688\.com|m\.1688\.com/offer/|m\.1688\.com/detail/)[^\s\"\']+~i', $body, $m)) {
+                    return $m[0];
+                }
+            }
+            return null;
+        } catch (\Throwable $e) {
+            \Log::warning('Short URL resolve failed', ['url' => $url, 'error' => $e->getMessage()]);
+            return null;
+        }
     }
 
     public function productPage()
