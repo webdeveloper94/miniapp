@@ -3,14 +3,14 @@
 @section('title','Profil')
 
 @section('content')
-<div class="page">
+<!-- <div class="page">
   <div class="card mini-card p-3 mb-3 d-flex align-items-center">
     <div class="avatar me-3"><i class="bi bi-person"></i></div>
     <div>
       <div class="fw-semibold">{{ session('telegram_user.first_name') }} {{ session('telegram_user.last_name') }}</div>
       <small class="text-secondary">@{{ session('telegram_user.username') }} • ID: {{ session('telegram_user.id') }}</small>
     </div>
-  </div>
+  </div> -->
 
   <div class="card mini-card p-3 mb-3">
     @if (session('status'))

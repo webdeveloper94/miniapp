@@ -17,6 +17,25 @@ class DajiSaasClient
         $this->appSecret = (string) config('dajisaas.app_secret');
     }
 
+    /**
+     * Preferred language options for API (best-effort).
+     * Some endpoints may ignore unknown keys, so we include several commonly used ones.
+     */
+    private function languageOptions(): array
+    {
+        // Try to respect mini app user's language; fallback to app locale; default 'en'
+        $lang = session('telegram_user.language_code') ?? app()->getLocale() ?? 'en';
+        $lang = in_array($lang, ['uz','ru','en']) ? $lang : 'en';
+        $locale = $lang === 'ru' ? 'ru_RU' : ($lang === 'uz' ? 'uz_UZ' : 'en_US');
+        return [
+            'language' => $lang,
+            'lang' => $lang,
+            'locale' => $locale,
+            'translate' => true,
+            'needTranslate' => true,
+        ];
+    }
+
     public function taobaoProductDetail(string $url): array
     {
         // Try different possible endpoints for Taobao
@@ -29,14 +48,14 @@ class DajiSaasClient
         ];
         
         foreach ($endpoints as $endpoint) {
-            $res = Http::timeout(config('dajisaas.timeout'))
+            $res = Http::retry(2, 500)->timeout(config('dajisaas.timeout'))
                 ->connectTimeout(config('dajisaas.connect_timeout'))
                 ->withOptions(['verify' => (bool) config('dajisaas.verify_ssl')])
-                ->asJson()->post($this->baseUrl . $endpoint, [
+                ->asJson()->post($this->baseUrl . $endpoint, array_merge([
                 'appKey' => $this->appKey,
                 'appSecret' => $this->appSecret,
                 'url' => $url,
-            ]);
+            ], $this->languageOptions()));
             
             if ($res->successful()) {
                 $json = $res->json();
@@ -66,14 +85,14 @@ class DajiSaasClient
     public function taobaoProductDetailByItemId(string $itemId): array
     {
         $endpoint = '/taobao/traffic/item/get';
-        $res = Http::timeout(config('dajisaas.timeout'))
+        $res = Http::retry(2, 500)->timeout(config('dajisaas.timeout'))
             ->connectTimeout(config('dajisaas.connect_timeout'))
             ->withOptions(['verify' => (bool) config('dajisaas.verify_ssl')])
-            ->get($this->baseUrl . $endpoint, [
+            ->get($this->baseUrl . $endpoint, array_merge([
                 'appKey' => $this->appKey,
                 'appSecret' => $this->appSecret,
                 'item_id' => $itemId,
-            ]);
+            ], $this->languageOptions()));
         
         // Log for debugging
         \Log::info('Taobao API request', [
@@ -99,14 +118,14 @@ class DajiSaasClient
     public function taobaoUploadImage(string $imageBase64): array
     {
         $endpoint = '/taobao/upload/image';
-        $res = Http::timeout(config('dajisaas.timeout'))
+        $res = Http::retry(2, 500)->timeout(config('dajisaas.timeout'))
             ->connectTimeout(config('dajisaas.connect_timeout'))
             ->withOptions(['verify' => (bool) config('dajisaas.verify_ssl')])
-            ->asMultipart()->post($this->baseUrl . $endpoint, [
+            ->asMultipart()->post($this->baseUrl . $endpoint, array_merge([
             'appKey' => $this->appKey,
             'appSecret' => $this->appSecret,
             'image_base64' => $imageBase64,
-        ]);
+        ], $this->languageOptions()));
         
         if ($res->successful()) {
             $json = $res->json();
@@ -124,14 +143,14 @@ class DajiSaasClient
     public function taobaoProductDetailByShortUrl(string $url): array
     {
         $endpoint = '/taobao/product/detailByShortUrl';
-        $res = Http::timeout(config('dajisaas.timeout'))
+        $res = Http::retry(2, 500)->timeout(config('dajisaas.timeout'))
             ->connectTimeout(config('dajisaas.connect_timeout'))
             ->withOptions(['verify' => (bool) config('dajisaas.verify_ssl')])
-            ->asJson()->post($this->baseUrl . $endpoint, [
+            ->asJson()->post($this->baseUrl . $endpoint, array_merge([
             'appKey' => $this->appKey,
             'appSecret' => $this->appSecret,
             'url' => $url,
-        ]);
+        ], $this->languageOptions()));
         if ($res->successful()) {
             $json = $res->json();
             return $json['data'] ?? $json ?? [];
@@ -147,14 +166,14 @@ class DajiSaasClient
     public function taobaoProductInfo(string $itemId): array
     {
         $endpoint = '/taobao/product/info';
-        $res = Http::timeout(config('dajisaas.timeout'))
+        $res = Http::retry(2, 500)->timeout(config('dajisaas.timeout'))
             ->connectTimeout(config('dajisaas.connect_timeout'))
             ->withOptions(['verify' => (bool) config('dajisaas.verify_ssl')])
-            ->asJson()->post($this->baseUrl . $endpoint, [
+            ->asJson()->post($this->baseUrl . $endpoint, array_merge([
             'appKey' => $this->appKey,
             'appSecret' => $this->appSecret,
             'itemId' => $itemId,
-        ]);
+        ], $this->languageOptions()));
         if ($res->successful()) {
             $json = $res->json();
             return $json['data'] ?? $json ?? [];
@@ -170,14 +189,14 @@ class DajiSaasClient
     public function taobaoProductSearch(string $keyword): array
     {
         $endpoint = '/taobao/product/search';
-        $res = Http::timeout(config('dajisaas.timeout'))
+        $res = Http::retry(2, 500)->timeout(config('dajisaas.timeout'))
             ->connectTimeout(config('dajisaas.connect_timeout'))
             ->withOptions(['verify' => (bool) config('dajisaas.verify_ssl')])
-            ->asJson()->post($this->baseUrl . $endpoint, [
+            ->asJson()->post($this->baseUrl . $endpoint, array_merge([
             'appKey' => $this->appKey,
             'appSecret' => $this->appSecret,
             'keyword' => $keyword,
-        ]);
+        ], $this->languageOptions()));
         if ($res->successful()) {
             $json = $res->json();
             return $json['data'] ?? $json ?? [];
@@ -193,14 +212,14 @@ class DajiSaasClient
     public function taobaoProductDetailByUrl(string $url): array
     {
         $endpoint = '/taobao/product/detailByUrl';
-        $res = Http::timeout(config('dajisaas.timeout'))
+        $res = Http::retry(2, 500)->timeout(config('dajisaas.timeout'))
             ->connectTimeout(config('dajisaas.connect_timeout'))
             ->withOptions(['verify' => (bool) config('dajisaas.verify_ssl')])
-            ->asJson()->post($this->baseUrl . $endpoint, [
+            ->asJson()->post($this->baseUrl . $endpoint, array_merge([
             'appKey' => $this->appKey,
             'appSecret' => $this->appSecret,
             'url' => $url,
-        ]);
+        ], $this->languageOptions()));
         if ($res->successful()) {
             $json = $res->json();
             return $json['data'] ?? $json ?? [];
@@ -216,14 +235,14 @@ class DajiSaasClient
     public function alibabaProductDetailByOfferId(string $offerId): array
     {
         $endpoint = '/alibaba/product/detail';
-        $res = Http::timeout(config('dajisaas.timeout'))
+        $res = Http::retry(2, 500)->timeout(config('dajisaas.timeout'))
             ->connectTimeout(config('dajisaas.connect_timeout'))
             ->withOptions(['verify' => (bool) config('dajisaas.verify_ssl')])
-            ->asJson()->post($this->baseUrl . $endpoint, [
+            ->asJson()->post($this->baseUrl . $endpoint, array_merge([
             'appKey' => $this->appKey,
             'appSecret' => $this->appSecret,
             'offerId' => $offerId,
-        ]);
+        ], $this->languageOptions()));
         if ($res->successful()) {
             $json = $res->json();
             return $json['data'] ?? $json ?? [];
@@ -239,14 +258,14 @@ class DajiSaasClient
     public function alibabaProductDetailByShortUrl(string $url): array
     {
         $endpoint = '/alibaba/product/detailByShortUrl';
-        $res = Http::timeout(config('dajisaas.timeout'))
+        $res = Http::retry(2, 500)->timeout(config('dajisaas.timeout'))
             ->connectTimeout(config('dajisaas.connect_timeout'))
             ->withOptions(['verify' => (bool) config('dajisaas.verify_ssl')])
-            ->asJson()->post($this->baseUrl . $endpoint, [
+            ->asJson()->post($this->baseUrl . $endpoint, array_merge([
             'appKey' => $this->appKey,
             'appSecret' => $this->appSecret,
             'url' => $url,
-        ]);
+        ], $this->languageOptions()));
         if ($res->successful()) {
             $json = $res->json();
             return $json['data'] ?? $json ?? [];
@@ -265,11 +284,11 @@ class DajiSaasClient
         $res = Http::timeout(config('dajisaas.timeout'))
             ->connectTimeout(config('dajisaas.connect_timeout'))
             ->withOptions(['verify' => (bool) config('dajisaas.verify_ssl')])
-            ->get($this->baseUrl . $endpoint, [
+            ->get($this->baseUrl . $endpoint, array_merge([
                 'appKey' => $this->appKey,
                 'appSecret' => $this->appSecret,
                 'offerId' => $offerId,
-            ]);
+            ], $this->languageOptions()));
         if ($res->successful()) {
             return $res->json('data') ?? [];
         }
@@ -287,7 +306,7 @@ class DajiSaasClient
         $body = array_merge([
             'appKey' => $this->appKey,
             'appSecret' => $this->appSecret,
-        ], $payload);
+        ], $payload, $this->languageOptions());
         $res = Http::asJson()->post($this->baseUrl . $endpoint, $body);
         $res->throw();
         return $res->json('data') ?? [];

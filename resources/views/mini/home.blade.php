@@ -4,13 +4,13 @@
 
 @section('content')
 <div class="page">
-  <div class="d-flex align-items-center gap-2 mb-3">
+  <!-- <div class="d-flex align-items-center gap-2 mb-3">
     <div class="avatar"><i class="bi bi-person"></i></div>
     <div>
       <div class="fw-semibold">Xush kelibsiz!</div>
       <small class="text-secondary">Mahsulot linkini kiriting va narx taklifi oling</small>
     </div>
-  </div>
+  </div> -->
 
   <div class="card mini-card p-3 mb-3">
     <form method="POST" action="{{ route('mini.find') }}">
