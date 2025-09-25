@@ -47,11 +47,24 @@
 
   <nav class="bottom-nav py-2">
     <div class="container-sm" style="max-width:480px">
+      @php
+        $cartCount = count(session('cart_items', []));
+        $ordersCount = 0;
+        try { $uid = session('telegram_user.id'); if ($uid) { $ordersCount = \App\Models\Order::where('user_id',$uid)->count(); } } catch (\Throwable $e) { $ordersCount = 0; }
+      @endphp
       <div class="d-flex justify-content-between text-center">
-        <a class="flex-fill {{ request()->routeIs('mini.home')?'active':'' }}" href="{{ route('mini.home') }}"><div><i class="bi bi-house-door fs-5"></i></div>Bosh sahifa</a>
-        <a class="flex-fill {{ request()->routeIs('mini.orders')?'active':'' }}" href="{{ route('mini.orders') }}"><div><i class="bi bi-bag fs-5"></i></div>Buyurtmalar</a>
-        <a class="flex-fill {{ request()->routeIs('mini.cart')?'active':'' }}" href="{{ route('mini.cart') }}"><div><i class="bi bi-cart fs-5"></i></div>Savatcha</a>
-        <a class="flex-fill {{ request()->routeIs('mini.profile')?'active':'' }}" href="{{ route('mini.profile') }}"><div><i class="bi bi-person fs-5"></i></div>Profil</a>
+        <a class="flex-fill {{ request()->routeIs('mini.home')?'active':'' }}" href="{{ route('mini.home') }}">
+          <div class="position-relative d-inline-block"><i class="bi bi-house-door fs-5"></i></div>
+          <div>Bosh sahifa</div></a>
+        <a class="flex-fill {{ request()->routeIs('mini.orders')?'active':'' }}" href="{{ route('mini.orders') }}">
+          <div class="position-relative d-inline-block"><i class="bi bi-bag fs-5"></i>@if($ordersCount>0)<span class="mini-badge">{{ $ordersCount>99?'99+':$ordersCount }}</span>@endif</div>
+          <div>Buyurtmalar</div></a>
+        <a class="flex-fill {{ request()->routeIs('mini.cart')?'active':'' }}" href="{{ route('mini.cart') }}">
+          <div class="position-relative d-inline-block"><i class="bi bi-cart fs-5"></i>@if($cartCount>0)<span class="mini-badge">{{ $cartCount>99?'99+':$cartCount }}</span>@endif</div>
+          <div>Savatcha</div></a>
+        <a class="flex-fill {{ request()->routeIs('mini.profile')?'active':'' }}" href="{{ route('mini.profile') }}">
+          <div><i class="bi bi-person fs-5"></i></div>
+          <div>Profil</div></a>
       </div>
     </div>
   </nav>
@@ -67,6 +80,7 @@
     .mini-toast.warning{background:#f59e0b}
     .mini-toast.danger{background:#dc3545}
     .mini-toast .close{margin-left:10px;cursor:pointer;opacity:.9}
+    .mini-badge{position:absolute;top:-6px;right:-12px;background:#ef4444;color:#fff;border-radius:999px;border:2px solid #fff;min-width:18px;height:18px;line-height:14px;padding:0 4px;font-size:11px;display:inline-flex;align-items:center;justify-content:center}
     
     /* Nicer bootstrap modal visuals */
     .modal-content{border:0;border-radius:18px;box-shadow:0 24px 64px rgba(29,114,242,.2)}

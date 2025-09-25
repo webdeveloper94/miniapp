@@ -121,8 +121,19 @@ class UserAppController extends Controller
                     }
                 }
             } else {
-                // Fallback: some 1688 short/mobile links may require shortUrl endpoint
-                $product = $api->alibabaProductDetailByShortUrl($link);
+                // QR 1688 qisqa linklarida shortUrl endpoint ko'p hollarda 404 qaytaradi.
+                // Shuning uchun avval yechishga yana urinib, offerId ajratamiz.
+                $resolved = $this->resolveFinalUrl($originalLink);
+                if ($resolved && preg_match('~/(offer)/(\d+)~', $resolved, $mx)) {
+                    $offerId = $mx[2];
+                    $offerIdForSession = $offerId;
+                    $product = $api->alibabaQueryProductDetail($offerId);
+                    if (isset($product['_error'])) {
+                        $product = $api->alibabaProductDetailByOfferId($offerId);
+                    }
+                } else {
+                    return back()->withErrors(['api' => '1688 qisqa linkni yechib bo\'lmadi. Iltimos, mahsulotning to\'liq 1688 linkini yuboring.']);
+                }
             }
         } elseif ($isTaobao) {
             // Extract itemId from Taobao URL
@@ -169,10 +180,10 @@ class UserAppController extends Controller
     {
         try {
             $attempts = [
-                ['ua' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'scheme' => null],
                 ['ua' => 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148', 'scheme' => null],
-                ['ua' => 'Mozilla/5.0 (Linux; Android 12; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Mobile Safari/537.36', 'scheme' => 'http'],
+                ['ua' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'scheme' => null],
             ];
+            $deadline = microtime(true) + 12; // fail-fast: max 12s overall
             foreach ($attempts as $conf) {
                 $target = $url;
                 if ($conf['scheme']) {
@@ -180,9 +191,9 @@ class UserAppController extends Controller
                 }
                 $client = new \GuzzleHttp\Client([
                     'allow_redirects' => true,
-                    'timeout' => 20,
-                    'connect_timeout' => 8,
-                    'read_timeout' => 20,
+                    'timeout' => 7,
+                    'connect_timeout' => 4,
+                    'read_timeout' => 7,
                     'verify' => false,
                     'http_errors' => false,
                     'cookies' => new \GuzzleHttp\Cookie\CookieJar(),
@@ -196,6 +207,7 @@ class UserAppController extends Controller
                 try {
                     $res = $client->get($target);
                 } catch (\Throwable $inner) {
+                    if (microtime(true) > $deadline) return null;
                     continue; // try next attempt
                 }
                 $eff = $res->getHeader('X-Guzzle-Effective-Url');
@@ -221,6 +233,7 @@ class UserAppController extends Controller
                 if (preg_match("~offerId[=:\\\"'](\\d{6,})~i", $body, $oid)) {
                     return 'https://m.1688.com/offer/' . $oid[1] . '.html';
                 }
+                if (microtime(true) > $deadline) return null;
             }
             return null;
         } catch (\Throwable $e) {
