@@ -30,6 +30,11 @@ Route::middleware(['web', 'admin'])->prefix('admin')->name('admin.')->group(func
     Route::get('/users', [\App\Http\Controllers\Admin\UserController::class, 'index'])->name('users.index');
 
     Route::get('/orders', [\App\Http\Controllers\Admin\OrderController::class, 'index'])->name('orders.index');
+    
+    // Balance payments
+    Route::get('/balance-payments', [\App\Http\Controllers\Admin\BalancePaymentController::class, 'index'])->name('balance-payments.index');
+    Route::post('/balance-payments/{payment}/approve', [\App\Http\Controllers\Admin\BalancePaymentController::class, 'approve'])->name('balance-payments.approve');
+    Route::post('/balance-payments/{payment}/reject', [\App\Http\Controllers\Admin\BalancePaymentController::class, 'reject'])->name('balance-payments.reject');
     Route::get('/orders/{order}', [\App\Http\Controllers\Admin\OrderController::class, 'show'])->name('orders.show');
     Route::put('/orders/{order}/status', [\App\Http\Controllers\Admin\OrderController::class, 'updateStatus'])->name('orders.updateStatus');
 
@@ -45,6 +50,10 @@ Route::prefix('mini')->name('mini.')->group(function () {
     Route::get('/orders', [UserAppController::class, 'orders'])->name('orders');
     Route::get('/cart', [UserAppController::class, 'cart'])->name('cart');
     Route::get('/profile', [UserAppController::class, 'profile'])->name('profile');
+    Route::get('/payments', [UserAppController::class, 'payments'])->name('payments');
+    Route::get('/balance', [UserAppController::class, 'balance'])->name('balance');
+    Route::post('/balance/add', [UserAppController::class, 'addBalance'])->name('balance.add');
+    Route::post('/order/cancel', [UserAppController::class, 'cancelOrder'])->name('order.cancel');
     Route::get('/history', [UserAppController::class, 'history'])->name('history');
     Route::post('/find', [UserAppController::class, 'findProduct'])->name('find');
     Route::get('/product', [UserAppController::class, 'productPage'])->name('product');

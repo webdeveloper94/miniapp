@@ -32,12 +32,13 @@ class UserAppController extends Controller
                     'username' => 'testuser',
                     'phone' => '+998901234567',
                     'role' => 'user',
-                    'language' => 'uz'
+                    'language' => 'uz',
+                    'balance' => 0
                 ]);
             }
             
             $fakeUser = [
-                'id' => $user->id,
+                'id' => $user->id, // users.id ni ishlatamiz
                 'username' => $user->username,
                 'first_name' => 'Test',
                 'last_name' => 'User',
@@ -47,12 +48,10 @@ class UserAppController extends Controller
             ];
             session(['telegram_user' => $fakeUser]);
         } else {
-            // Session mavjud, lekin user_id ni tekshirish
+            // Session mavjud, lekin users.id mavjudligini tekshirish
             $telegramUser = session('telegram_user');
             $userId = $telegramUser['id'] ?? null;
-            
-            if ($userId && !\App\Models\User::where('id', $userId)->exists()) {
-                // Agar session da user_id mavjud emas bo'lsa, yangi user yaratish
+            if (!$userId || !\App\Models\User::where('id', $userId)->exists()) {
                 $user = \App\Models\User::where('role', 'user')->first();
                 if (!$user) {
                     $user = \App\Models\User::create([
@@ -62,21 +61,12 @@ class UserAppController extends Controller
                         'username' => 'testuser',
                         'phone' => '+998901234567',
                         'role' => 'user',
-                        'language' => 'uz'
+                        'language' => 'uz',
                     ]);
                 }
-                
-                // Session ni yangilash
-                $fakeUser = [
-                    'id' => $user->id,
-                    'username' => $user->username,
-                    'first_name' => 'Test',
-                    'last_name' => 'User',
-                    'language_code' => 'uz',
-                    'is_bot' => false,
-                    'is_premium' => false,
-                ];
-                session(['telegram_user' => $fakeUser]);
+                $telegramUser['id'] = $user->id;
+                $telegramUser['username'] = $user->username;
+                session(['telegram_user' => $telegramUser]);
             }
         }
     }
@@ -87,7 +77,7 @@ class UserAppController extends Controller
         $link = $data['link'];
         $originalLink = $link;
 
-        // 1) Agar qisqa Taobao link bo'lsa, uni to'liq manzilga yechib olishga urinib ko'ramiz
+        // 1) Agar qisqa link bo'lsa, uni to'liq manzilga yechib olishga urinib ko'ramiz
         if ($this->looksLikeShortUrl($link)) {
             $resolved = $this->resolveFinalUrl($link);
             if (!empty($resolved)) {
@@ -95,6 +85,10 @@ class UserAppController extends Controller
                 \Log::info('Short URL resolved', ['original' => $originalLink, 'resolved' => $link]);
             } else {
                 \Log::warning('Short URL resolve failed, will try shortUrl API fallback', ['url' => $link]);
+                // For 1688 short URLs, if resolution fails, we'll try API fallback later
+                if (preg_match('~(qr\.1688\.com)~i', $originalLink)) {
+                    \Log::info('1688 short URL resolution failed, will use API fallback', ['url' => $originalLink]);
+                }
             }
         }
         // Detect platform and fetch accordingly
@@ -121,18 +115,15 @@ class UserAppController extends Controller
                     }
                 }
             } else {
-                // QR 1688 qisqa linklarida shortUrl endpoint ko'p hollarda 404 qaytaradi.
-                // Shuning uchun avval yechishga yana urinib, offerId ajratamiz.
-                $resolved = $this->resolveFinalUrl($originalLink);
-                if ($resolved && preg_match('~/(offer)/(\d+)~', $resolved, $mx)) {
-                    $offerId = $mx[2];
-                    $offerIdForSession = $offerId;
-                    $product = $api->alibabaQueryProductDetail($offerId);
+                // Use new resolve1688Link method for short URLs
+                if ($this->looksLikeShortUrl($originalLink)) {
+                    $product = $this->resolve1688Link($originalLink, $api);
                     if (isset($product['_error'])) {
-                        $product = $api->alibabaProductDetailByOfferId($offerId);
+                        \Log::error('1688 product resolution failed', ['url' => $originalLink, 'error' => $product['msg']]);
+                        return back()->withErrors(['api' => $product['msg'] ?? '1688 qisqa linkni yechib bo\'lmadi. Iltimos, mahsulotning to\'liq 1688 linkini yuboring.']);
                     }
                 } else {
-                    return back()->withErrors(['api' => '1688 qisqa linkni yechib bo\'lmadi. Iltimos, mahsulotning to\'liq 1688 linkini yuboring.']);
+                    return back()->withErrors(['api' => 'Qo\'llab-quvvatlanmaydigan link. Faqat 1688.com linklarini kiriting.']);
                 }
             }
         } elseif ($isTaobao) {
@@ -219,10 +210,84 @@ class UserAppController extends Controller
         }
     }
 
+    public function resolve1688Link(string $url, DajiSaasClient $api)
+    {
+        // Avval API fallback'ni sinab ko'ramiz (tezroq)
+        try {
+            \Log::info('Trying 1688 API fallback first', ['url' => $url]);
+            $product = $api->alibabaProductDetailByShortUrl($url);
+            if (!isset($product['_error'])) {
+                \Log::info('1688 API fallback successful', ['url' => $url]);
+                return $product;
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('1688 API fallback failed', ['url' => $url, 'error' => $e->getMessage()]);
+        }
+
+        // Agar API fallback ishlamasa, URL'ni yechishga urinamiz
+        $client = new \GuzzleHttp\Client([
+            'timeout'         => 2, // juda qisqa timeout
+            'connect_timeout' => 2,
+            'allow_redirects' => true,
+            'verify' => false,
+            'http_errors' => false,
+            'headers' => [
+                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+            ],
+        ]);
+
+        try {
+            // Short linkni yechishga urinish
+            $response = $client->get($url);
+            $finalUrl = $response->getHeader('X-Guzzle-Effective-Url')[0] ?? (string)$response->getBody();
+
+            if ($finalUrl && preg_match('~/offer/(\d+)~', $finalUrl, $m)) {
+                $offerId = $m[1];
+                \Log::info('1688 offerId extracted', ['url' => $url, 'offerId' => $offerId]);
+                
+                $product = $api->alibabaQueryProductDetail($offerId);
+                if (isset($product['_error'])) {
+                    // Fallback to offerId method
+                    $product = $api->alibabaProductDetailByOfferId($offerId);
+                }
+                return $product;
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('1688 short url resolve failed', ['url' => $url, 'error' => $e->getMessage()]);
+        }
+
+        // Agar hammasi ishlamasa, boshqa API endpoint'larni sinab ko'ramiz
+        try {
+            \Log::info('Trying alternative 1688 API endpoints', ['url' => $url]);
+            
+            // Boshqa API endpoint'larni sinab ko'ramiz
+            $alternativeEndpoints = [
+                'alibabaProductDetailByOfferId',
+                'alibabaQueryProductDetail'
+            ];
+            
+            foreach ($alternativeEndpoints as $endpoint) {
+                try {
+                    $product = $api->$endpoint($url);
+                    if (!isset($product['_error'])) {
+                        \Log::info('Alternative 1688 API endpoint successful', ['url' => $url, 'endpoint' => $endpoint]);
+                        return $product;
+                    }
+                } catch (\Throwable $e) {
+                    \Log::warning('Alternative 1688 API endpoint failed', ['url' => $url, 'endpoint' => $endpoint, 'error' => $e->getMessage()]);
+                }
+            }
+        } catch (\Throwable $e) {
+            \Log::error('All 1688 API attempts failed', ['url' => $url, 'error' => $e->getMessage()]);
+        }
+
+        return ['_error' => true, 'msg' => '1688 qisqa linkni yechib bo\'lmadi. Iltimos, mahsulotning to\'liq 1688 linkini yuboring.'];
+    }
+
     private function resolveFinalUrl(string $url): ?string
     {
         try {
-            // Check if it's a Taobao short URL first
+            // Check if it's a Taobao short URL
             if (preg_match('~(e\.tb\.cn|m\.tb\.cn|s\.click\.taobao\.com|s\.click\.tmall\.com|tb\.cn)~i', $url)) {
                 $resolved = $this->resolveTaobaoShortUrl($url);
                 if ($resolved) {
@@ -562,6 +627,88 @@ class UserAppController extends Controller
         $this->ensureFakeTelegramUser();
         $payments = Payment::query()->latest('id')->limit(5)->get();
         return view('mini.profile', compact('payments'));
+    }
+
+    public function payments()
+    {
+        $this->ensureFakeTelegramUser();
+        $telegramUser = session('telegram_user');
+        $userId = $telegramUser['id'] ?? null;
+        $payments = Payment::where('user_id', $userId)
+            ->latest('id')
+            ->paginate(20);
+        return view('mini.payments', compact('payments'));
+    }
+
+    public function balance()
+    {
+        $this->ensureFakeTelegramUser();
+        $telegramUser = session('telegram_user');
+        $user = \App\Models\User::find($telegramUser['id'] ?? null);
+        $balance = $user?->balance ?? 0;
+        
+        return view('mini.balance', ['user' => $telegramUser, 'balance' => $balance]);
+    }
+
+    public function addBalance(Request $request)
+    {
+        $this->ensureFakeTelegramUser();
+        
+        $request->validate([
+            'amount' => 'required|numeric|min:1000|max:1000000',
+            'receipt_image' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048'
+        ]);
+
+        $telegramUser = session('telegram_user');
+        $userId = $telegramUser['id'] ?? null;
+
+        // Rasmni saqlash
+        $receiptPath = $request->file('receipt_image')->store('balance_receipts', 'public');
+
+        // Payment yaratish (user mavjud bo'lmasa ham users.id sifatida fallback ishlatiladi)
+        Payment::create([
+            'user_id' => $userId ?? 1,
+            'amount' => $request->amount,
+            'receipt_url' => $receiptPath,
+            'status' => 'pending',
+            'type' => 'balance_topup'
+        ]);
+
+        return back()->with('success', 'Balans to\'ldirish so\'rovi yuborildi! Admin tasdiqlashini kuting.');
+    }
+
+    public function cancelOrder(Request $request)
+    {
+        $this->ensureFakeTelegramUser();
+        
+        $data = $request->validate([
+            'order_id' => 'required|exists:orders,id'
+        ]);
+
+        $telegramUser = session('telegram_user');
+        $userId = $telegramUser['id'] ?? null;
+
+        $order = Order::where('id', $data['order_id'])
+                      ->where('user_id', $userId)
+                      ->where('status', 'pending')
+                      ->first();
+
+        if (!$order) {
+            return back()->withErrors(['error' => 'Buyurtma topilmadi yoki bekor qilinishi mumkin emas']);
+        }
+
+        $order->status = 'cancelled';
+        $order->save();
+
+        if ($order->payment && $order->payment->amount > 0 && $userId) {
+            $user = \App\Models\User::find($userId);
+            if ($user) {
+                $user->balance += $order->payment->amount;
+                $user->save();
+            }
+        }
+
+        return back()->with('success', 'Buyurtma bekor qilindi va to\'lov balansingizga qaytarildi!');
     }
 
     public function checkout()

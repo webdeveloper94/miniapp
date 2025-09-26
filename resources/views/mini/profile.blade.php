@@ -12,6 +12,26 @@
     </div>
   </div> -->
 
+  <!-- Balance Card -->
+  <div class="card mini-card p-3 mb-3">
+    <div class="d-flex align-items-center justify-content-between">
+      <div>
+        <h6 class="mb-1">Balans</h6>
+        <div class="text-primary fw-bold fs-5">
+          {{ number_format(optional(\App\Models\User::find(session('telegram_user.id')))->balance ?? 0, 0, ',', ' ') }} so'm
+        </div>
+      </div>
+      <div class="d-flex gap-2">
+        <a href="{{ route('mini.payments') }}" class="btn btn-outline-primary btn-sm">
+          <i class="bi bi-clock-history me-1"></i> Tarix
+        </a>
+        <a href="{{ route('mini.balance') }}" class="btn btn-primary btn-sm">
+          <i class="bi bi-wallet2 me-1"></i> To'ldirish
+        </a>
+      </div>
+    </div>
+  </div>
+
   <div class="card mini-card p-3 mb-3">
     @if (session('status'))
       <div class="alert alert-info py-2 px-3">{{ session('status') }}</div>

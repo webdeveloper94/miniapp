@@ -34,7 +34,25 @@ class PaymentController extends Controller
 
     public function approve(Payment $payment)
     {
-        $payment->update(['status' => 'approved']);
+        // Only act if still pending
+        if ($payment->status !== 'approved') {
+            $payment->update(['status' => 'approved']);
+
+            // If this is a balance top-up, credit user's balance
+            if ($payment->type === 'balance_topup' && $payment->user) {
+                try {
+                    $payment->user->increment('balance', $payment->amount);
+                } catch (\Throwable $e) {
+                    \Log::error('Balance credit failed on approval', [
+                        'payment_id' => $payment->id,
+                        'user_id' => $payment->user_id,
+                        'amount' => $payment->amount,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+        }
+
         return back()->with('status', 'To\'lov tasdiqlandi');
     }
 

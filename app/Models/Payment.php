@@ -21,6 +21,7 @@ class Payment extends Model
         'transaction_id',
         'receipt_url',
         'card_number',
+        'type',
     ];
 
     public function user()

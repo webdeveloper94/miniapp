@@ -23,6 +23,7 @@
               'pending' => 'warning',
               'accepted' => 'success', 
               'rejected' => 'danger',
+              'cancelled' => 'secondary',
               'shipping' => 'info',
               'delivered' => 'success'
             ];
@@ -30,6 +31,7 @@
               'pending' => 'Kutilmoqda',
               'accepted' => 'Qabul qilindi',
               'rejected' => 'Rad etildi',
+              'cancelled' => 'Bekor qilindi',
               'shipping' => 'Yetkazilmoqda',
               'delivered' => 'Yetkazib berildi'
             ];
@@ -119,12 +121,28 @@
             <button class="btn btn-warning" disabled>
               <i class="bi bi-clock me-1"></i> Tasdiqlanishi kutilmoqda
             </button>
+            <form method="POST" action="{{ route('mini.order.cancel') }}" class="d-inline">
+              @csrf
+              <input type="hidden" name="order_id" value="{{ $order->id }}">
+              <button type="submit" class="btn btn-outline-danger btn-sm w-100" 
+                      onclick="return confirm('Buyurtmani bekor qilishni xohlaysizmi? To\'lov balansingizga qaytariladi.')">
+                <i class="bi bi-x-circle me-1"></i> Bekor qilish
+              </button>
+            </form>
           </div>
         @else
           <div class="d-grid gap-2">
             <button class="btn btn-mini" data-bs-toggle="modal" data-bs-target="#paymentModal{{ $order->id }}">
               <i class="bi bi-credit-card me-1"></i> To'lov qilish
             </button>
+            <form method="POST" action="{{ route('mini.order.cancel') }}" class="d-inline">
+              @csrf
+              <input type="hidden" name="order_id" value="{{ $order->id }}">
+              <button type="submit" class="btn btn-outline-danger btn-sm w-100" 
+                      onclick="return confirm('Buyurtmani bekor qilishni xohlaysizmi?')">
+                <i class="bi bi-x-circle me-1"></i> Bekor qilish
+              </button>
+            </form>
           </div>
         @endif
       @elseif($order->status === 'accepted')
@@ -143,6 +161,12 @@
               <i class="bi bi-info-circle me-1"></i> Sabab: {{ $order->payment->note }}
             </small>
           @endif
+        </div>
+      @elseif($order->status === 'cancelled')
+        <div class="d-grid gap-2">
+          <button class="btn btn-secondary" disabled>
+            <i class="bi bi-x-circle me-1"></i> Bekor qilindi
+          </button>
         </div>
       @elseif($order->status === 'shipping')
         <div class="d-grid gap-2">
