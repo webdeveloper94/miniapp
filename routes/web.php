@@ -72,6 +72,7 @@ Route::prefix('mini')->name('mini.')->group(function () {
     Route::post('/order/create', [UserAppController::class, 'createOrder'])->name('order.create');
     // Payment routes
     Route::post('/payment/submit', [UserAppController::class, 'submitPayment'])->name('payment.submit');
+    Route::post('/payment/pay-from-balance', [UserAppController::class, 'payFromBalance'])->name('payment.pay-from-balance');
 
     // Mini auth (login password for profile recovery)
     Route::post('/auth/set-password', [MiniAuthController::class, 'setPassword'])->name('auth.setPassword');

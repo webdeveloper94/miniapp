@@ -132,8 +132,19 @@
           </div>
         @else
           <div class="d-grid gap-2">
+            @php $canPayFromBalance = ($userBalance ?? 0) >= ($order->total_price ?? 0); @endphp
+            @if($canPayFromBalance)
+              <form method="POST" action="{{ route('mini.payment.pay-from-balance') }}">
+                @csrf
+                <input type="hidden" name="order_id" value="{{ $order->id }}">
+                <button type="submit" class="btn btn-success">
+                  <i class="bi bi-wallet2 me-1"></i> Balansdan to'lash ({{ number_format($userBalance, 0, '', ' ') }} so'm mavjud)
+                </button>
+              </form>
+              <div class="text-center text-muted small">Yoki</div>
+            @endif
             <button class="btn btn-mini" data-bs-toggle="modal" data-bs-target="#paymentModal{{ $order->id }}">
-              <i class="bi bi-credit-card me-1"></i> To'lov qilish
+              <i class="bi bi-credit-card me-1"></i> Karta orqali to'lash
             </button>
             <form method="POST" action="{{ route('mini.order.cancel') }}" class="d-inline">
               @csrf

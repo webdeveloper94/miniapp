@@ -23,15 +23,29 @@ class DajiSaasClient
      */
     private function languageOptions(): array
     {
-        // Try to respect mini app user's language; fallback to app locale; default 'en'
-        $lang = session('telegram_user.language_code') ?? app()->getLocale() ?? 'en';
-        $lang = in_array($lang, ['uz','ru','en']) ? $lang : 'en';
-        
-        // For Taobao API, use more conservative language settings
+        // Respect user language. Preferred order: ru → en → zh
+        $userLang = strtolower((string) (session('telegram_user.language_code') ?? app()->getLocale() ?? ''));
+        $preferred = 'en';
+        if ($userLang === 'ru') {
+            $preferred = 'ru';
+        } elseif ($userLang === 'en') {
+            $preferred = 'en';
+        } else {
+            // default/fallback to Chinese if nothing else
+            $preferred = 'zh';
+        }
+
+        // Map to locales
+        $localeMap = [
+            'ru' => 'ru_RU',
+            'en' => 'en_US',
+            'zh' => 'zh_CN',
+        ];
+
         return [
-            'language' => 'en', // Force English to avoid I18N_LANG_NOT_SUPPORTED
-            'lang' => 'en',
-            'locale' => 'en_US',
+            'language' => $preferred,
+            'lang' => $preferred,
+            'locale' => $localeMap[$preferred] ?? 'en_US',
             'translate' => false,
             'needTranslate' => false,
         ];

@@ -7,6 +7,7 @@ use App\Models\OrderItem;
 use App\Models\Payment;
 use Illuminate\Http\Request;
 use App\Services\DajiSaasClient;
+use Illuminate\Support\Str;
 
 class UserAppController extends Controller
 {
@@ -496,8 +497,9 @@ class UserAppController extends Controller
 
         // Admin ma'lumotlarini olish
         $adminSettings = \App\Models\AdminSetting::pluck('value', 'key');
+        $userBalance = optional(\App\Models\User::find($userId))->balance ?? 0;
             
-        return view('mini.orders', compact('orders', 'adminSettings'));
+        return view('mini.orders', compact('orders', 'adminSettings', 'userBalance'));
     }
 
     public function cart()
@@ -760,14 +762,7 @@ class UserAppController extends Controller
                     }
                 }
             }
-            if ($hasVariants){
-                $selected = json_decode($data['selected_variants'] ?? '{}', true);
-                foreach ($requiredGroups as $g){
-                    if (empty($selected[$g])){
-                        return back()->withErrors(['error' => "Iltimos, variant tanlang: $g"])->withInput();
-                    }
-                }
-            }
+            // Variant tanlashni hozircha majburiy qilmaymiz
 
             // Telegram user ID ni olish va tekshirish
             $telegramUser = session('telegram_user');
@@ -815,7 +810,7 @@ class UserAppController extends Controller
             // Buyurtma yaratish
             $order = Order::create([
                 'user_id' => $userId,
-                'product_url' => session('mini_product_link', ''),
+                'product_url' => Str::limit((string) session('mini_product_link', ''), 255, ''),
                 'source_platform' => '1688',
                 'status' => 'pending',
                 'total_price' => $baseTotal + $serviceAmount,
@@ -992,6 +987,55 @@ class UserAppController extends Controller
             \Log::error('Payment submission error: ' . $e->getMessage());
             return back()->withErrors(['error' => 'To\'lov yuborishda xato: ' . $e->getMessage()]);
         }
+    }
+
+    public function payFromBalance(Request $request)
+    {
+        $this->ensureFakeTelegramUser();
+        $data = $request->validate([
+            'order_id' => 'required|exists:orders,id'
+        ]);
+
+        $telegramUser = session('telegram_user');
+        $userId = $telegramUser['id'] ?? null;
+        $user = \App\Models\User::find($userId);
+        $order = Order::with('payment')->where('id', $data['order_id'])->where('user_id', $userId)->firstOrFail();
+
+        $amount = (float) $order->total_price;
+        if (!$user || $user->balance < $amount) {
+            return back()->withErrors(['error' => 'Balansda mablag\' yetarli emas']);
+        }
+
+        // Mablag'ni balansdan yechish
+        $user->balance -= $amount;
+        $user->save();
+
+        // Payment yozuvini yaratish yoki yangilash
+        if ($order->payment) {
+            $order->payment->update([
+                'amount' => $amount,
+                'status' => 'approved',
+                'payment_method' => 'balance',
+                'type' => 'order',
+            ]);
+        } else {
+            Payment::create([
+                'user_id' => $userId,
+                'order_id' => $order->id,
+                'amount' => $amount,
+                'currency' => 'UZS',
+                'status' => 'approved',
+                'payment_method' => 'balance',
+                'receipt_url' => null,
+                'type' => 'order',
+            ]);
+        }
+
+        // Buyurtmani accepted qilish
+        $order->status = 'accepted';
+        $order->save();
+
+        return back()->with('status', 'To\'lov balansdan amalga oshirildi!');
     }
 }
 
