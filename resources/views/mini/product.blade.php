@@ -9,17 +9,18 @@
     <div id="head"></div>
   </div>
 
+
+  <div id="variants" class="card mini-card p-3 mb-3 d-none">
+    <h6 class="mb-2">Variantlar</h6>
+    <div id="variantsBody"></div>
+  </div>
+
   <div id="attrs" class="card mini-card p-3 mb-3 d-none">
     <div class="d-flex justify-content-between align-items-center mb-2">
       <h6 class="mb-0">Xususiyatlar</h6>
       <button id="attrsToggle" type="button" class="btn btn-sm btn-outline-primary">Ko'rsatish</button>
     </div>
     <div id="attrsBody" class="d-none"></div>
-  </div>
-
-  <div id="variants" class="card mini-card p-3 mb-3 d-none">
-    <h6 class="mb-2">Variantlar</h6>
-    <div id="variantsBody"></div>
   </div>
 
   <!-- @if(!empty($offerId))
@@ -104,7 +105,7 @@
   }
   const numPrice = toNumber(price);
   const displayPrice = (numPrice !== null) ? (rate > 0 ? Math.round(numPrice * rate) : numPrice) : '-';
-  headEl.innerHTML = `<div class="fw-semibold mb-1">${title}</div><div class="mb-1">Narx: <span class="chip">${displayPrice}${currencySuffix}</span></div><small class="text-secondary d-block">Do‘kon: ${shop}</small>`;
+  headEl.innerHTML = `<div class="fw-semibold mb-1">${title}</div><div class="mb-1">Narx: <span id="priceText" class="chip">${displayPrice}${currencySuffix}</span></div><small class="text-secondary d-block">Do‘kon: ${shop}</small>`;
 
   // Try different image sources for Taobao products (extended)
   let imgs = pick('images') || pick('imageList') || pick('gallery') || 
@@ -126,19 +127,39 @@
   if (imgs && imgs.images) imgs = imgs.images;
   if (typeof imgs === 'string') imgs = [imgs];
   if (imgs && imgs.length){
-    const slides = imgs.map((it,idx) => {
-      const src = typeof it === 'string' ? it : (it.url || it.fullPathImageURI || it.imageUrl || '');
-      return `<div class=\"carousel-item ${idx===0?'active':''}\"><img src=\"${src}\" referrerpolicy=\"no-referrer\" crossorigin=\"anonymous\" loading=\"lazy\" class=\"d-block w-100\" style=\"max-height:260px;object-fit:cover\"/></div>`;
-    }).join('');
-    const indicators = imgs.map((_,i)=>`<button type=\"button\" data-bs-target=\"#prodCarousel\" data-bs-slide-to=\"${i}\" ${i===0?'class=\"active\" aria-current=\"true\"':''} aria-label=\"Slide ${i+1}\"></button>`).join('');
-    imagesEl.innerHTML = `<div id=\"prodCarousel\" class=\"carousel slide\" data-bs-ride=\"carousel\">`
-      + `<div class=\"carousel-indicators\">${indicators}</div>`
-      + `<div class=\"carousel-inner\" style=\"border-radius:12px;overflow:hidden\">${slides}</div>`
-      + `<button class=\"carousel-control-prev\" type=\"button\" data-bs-target=\"#prodCarousel\" data-bs-slide=\"prev\">`
-      + `<span class=\"carousel-control-prev-icon\" aria-hidden=\"true\"></span><span class=\"visually-hidden\">Previous</span></button>`
-      + `<button class=\"carousel-control-next\" type=\"button\" data-bs-target=\"#prodCarousel\" data-bs-slide=\"next\">`
-      + `<span class=\"carousel-control-next-icon\" aria-hidden=\"true\"></span><span class=\"visually-hidden\">Next</span></button>`
-      + `</div>`;
+    const urls = imgs.map(it => (typeof it === 'string') ? it : (it.url || it.fullPathImageURI || it.imageUrl || '')).filter(Boolean);
+    const main = urls[0];
+    const thumbs = urls.map((u, i) => `<img data-src="${u}" src="${u}" class="mini-thumb ${i===0?'active':''}" style="width:54px;height:54px;object-fit:cover;border-radius:8px;border:2px solid ${i===0?'#1d72f2':'#eee'};cursor:pointer" referrerpolicy="no-referrer" crossorigin="anonymous"/>`).join(' ');
+    imagesEl.innerHTML = `
+      <div class="mb-2 text-center">
+        <img id="galleryMainImg" src="${main}" class="img-fluid" style="max-height:260px;object-fit:cover;border-radius:12px" referrerpolicy="no-referrer" crossorigin="anonymous"/>
+      </div>
+      <div id="galleryThumbs" class="d-flex flex-wrap gap-2 justify-content-center">${thumbs}</div>
+    `;
+    imagesEl.classList.remove('text-secondary');
+    // thumbs click
+    imagesEl.querySelectorAll('#galleryThumbs .mini-thumb').forEach(thumb => {
+      thumb.addEventListener('click', () => {
+        const url = thumb.getAttribute('data-src');
+        setMainImage(url);
+        imagesEl.querySelectorAll('#galleryThumbs .mini-thumb').forEach(t => { t.classList.remove('active'); t.style.borderColor = '#eee'; });
+        thumb.classList.add('active'); thumb.style.borderColor = '#1d72f2';
+      });
+    });
+  }
+
+  // Helpers to update UI when variant selected
+  function setMainImage(url){
+    if (!url) return;
+    // Normalize protocol-relative urls
+    if (url.startsWith('//')) url = 'https:' + url;
+    const mainImg = document.getElementById('galleryMainImg');
+    if (mainImg) {
+      mainImg.src = url;
+      return;
+    }
+    // Fallback single render if gallery not built yet
+    imagesEl.innerHTML = `<div class="text-center"><img src="${url}" referrerpolicy="no-referrer" crossorigin="anonymous" class="img-fluid" style="max-height:260px;object-fit:cover;border-radius:12px"/></div>`;
     imagesEl.classList.remove('text-secondary');
   }
 
@@ -202,6 +223,101 @@
       return `<div class="mb-2"><div class="small text-secondary mb-1">${group}</div><div class="d-flex flex-wrap gap-2">${chips}</div></div>`;
     }).join('');
     // selections is defined globally above
+    // Build a light-weight normalized sku list for matching (supports Taobao variants)
+    const skuList = (() => {
+      const list = [];
+      if (Array.isArray(product.skuList) && product.skuList.length){
+        product.skuList.forEach(s => {
+          list.push({
+            picUrl: s.picUrl || s.pic || null,
+            price: s.promotionPrice ?? s.price,
+            promotionPrice: s.promotionPrice,
+            properties: (s.properties || []).map(p => ({
+              valueName: p.valueName || p.valueDesc || p.value || ''
+            }))
+          });
+        });
+      }
+      if (!list.length && Array.isArray(product.productSkuInfos)){
+        product.productSkuInfos.forEach(s => {
+          list.push({
+            picUrl: s.pic || s.picUrl || null,
+            price: s.price || (s.priceRange && s.priceRange.price) || null,
+            promotionPrice: s.promotionPrice,
+            properties: (s.skuAttributes || []).map(a => ({
+              valueName: a.valueTrans || a.value || ''
+            }))
+          });
+        });
+      }
+      return list;
+    })();
+
+    function toCleanNumber(v){ const n = toNumber(v); return n !== null ? n : null; }
+    function getSkuImage(skuListInner, sel){
+      if (!Array.isArray(skuListInner)) return null;
+      const selLower = Object.fromEntries(Object.entries(sel || {}).map(([k,v])=>[String(k).trim().toLowerCase(), String(v||'').trim()]));
+      const found = skuListInner.find(sku => {
+        const props = sku.properties || [];
+        return props.every(p => {
+          const propName = String(p.propName || '').trim().toLowerCase();
+          const selVal = selLower[propName];
+          return selVal && selVal === String(p.valueName || p.valueDesc || p.value || '').trim();
+        });
+      });
+      return found ? (found.picUrl || found.pic || null) : null;
+    }
+
+    function updateBySelection(){
+      if (!skuList.length) return;
+      const keys = Object.keys(selections || {});
+      if (!keys.length) return;
+      // Try propName-based strict matching first
+      let imgUrl = getSkuImage(skuList, selections);
+      // If not found, fallback to value-only inclusive matching (previous behaviour)
+      let match = null;
+      if (!imgUrl){
+        match = skuList.find(sku => {
+          const props = sku.properties || [];
+          return keys.every(g => {
+            const sel = (selections[g] || '').trim();
+            return props.some(p => String(p.valueName || p.valueDesc || p.value || '').trim() === sel);
+          });
+        });
+        if (match) imgUrl = match.picUrl || match.pic || null;
+      }
+
+      if (imgUrl){
+        // Rasmni yangilash
+        if (imgUrl && imgUrl.startsWith('//')) imgUrl = 'https:' + imgUrl;
+        if (imgUrl) setMainImage(imgUrl);
+
+        // Thumb’ni aktiv qilish (protocolni olib tashlab, fayl nomi bo'yicha taqqoslash)
+        {
+          const thumbs = imagesEl.querySelectorAll('#galleryThumbs .mini-thumb');
+          thumbs.forEach(t => { t.classList.remove('active'); t.style.borderColor = '#eee'; });
+          const cleanImg = imgUrl.replace(/^https?:/, '');
+          const targetName = cleanImg.split('/').pop();
+          thumbs.forEach(t => {
+            const u = (t.getAttribute('data-src') || '').replace(/^https?:/, '');
+            if (u.endsWith(targetName)) {
+              t.classList.add('active');
+              t.style.borderColor = '#1d72f2';
+            }
+          });
+        }
+
+        // Narxni yangilash
+        const targetSku = match || skuList.find(s => (s.picUrl||s.pic) === imgUrl || (('https:'+(s.picUrl||s.pic||'')).endsWith(imgUrl.split('/').pop())) ) || null;
+        const base = toNumber(targetSku ? (targetSku.promotionPrice ?? targetSku.price) : null);
+        if (base){
+          const p = rate>0 ? Math.round(base*rate) : base;
+          const priceEl = document.getElementById('priceText');
+          if (priceEl) priceEl.textContent = `${p}${currencySuffix}`;
+        }
+      }
+    }
+
     variantsBody.addEventListener('click', (e)=>{
       const el = e.target.closest('.chip-select');
       if (!el) return;
@@ -209,6 +325,7 @@
       variantsBody.querySelectorAll(`.chip-select[data-group="${group}"]`).forEach(c=>c.classList.remove('active'));
       el.classList.add('active');
       selections[group] = el.getAttribute('data-value');
+      updateBySelection();
     });
     
     // Savatdan kelgan mahsulot uchun avtomatik tanlash
