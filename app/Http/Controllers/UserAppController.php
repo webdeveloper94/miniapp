@@ -173,17 +173,70 @@ class UserAppController extends Controller
 
     private function looksLikeShortUrl(string $url): bool
     {
-        return (bool) preg_match('~(e\.tb\.cn|m\.tb\.cn|s\.click\.taobao\.com|tb\.cn|t\.cn|qr\.1688\.com)~i', $url);
+        return (bool) preg_match('~(e\.tb\.cn|m\.tb\.cn|s\.click\.taobao\.com|tb\.cn|t\.cn|qr\.1688\.com|s\.click\.tmall\.com)~i', $url);
+    }
+
+    private function resolveTaobaoShortUrl(string $shortUrl): ?string
+    {
+        try {
+            $client = new \GuzzleHttp\Client([
+                'allow_redirects' => true,
+                'timeout' => 10,
+                'headers' => [
+                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept-Language' => 'zh-CN,zh;q=0.9,en;q=0.8',
+                    'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                ]
+            ]);
+
+            $response = $client->get($shortUrl);
+            $effectiveUrl = $response->getHeader('X-Guzzle-Effective-Url');
+            
+            if (!empty($effectiveUrl)) {
+                return $effectiveUrl[0];
+            }
+            
+            $body = (string) $response->getBody();
+            
+            // Extract Taobao/Tmall URLs from response body
+            if (preg_match('~https?://(?:item\.taobao\.com|detail\.tmall\.com|h5\.m\.taobao\.com|h5\.m\.tmall\.com)[^\s\"\']+~i', $body, $matches)) {
+                return $matches[0];
+            }
+            
+            // Extract item ID and construct URL
+            if (preg_match('~[?&]id=(\d{10,})~i', $body, $idMatch)) {
+                if (strpos($body, 'taobao.com') !== false) {
+                    return 'https://item.taobao.com/item.htm?id=' . $idMatch[1];
+                } elseif (strpos($body, 'tmall.com') !== false) {
+                    return 'https://detail.tmall.com/item.htm?id=' . $idMatch[1];
+                }
+            }
+            
+            return null;
+        } catch (\Throwable $e) {
+            \Log::warning('Taobao short URL resolve failed', ['url' => $shortUrl, 'error' => $e->getMessage()]);
+            return null;
+        }
     }
 
     private function resolveFinalUrl(string $url): ?string
     {
         try {
+            // Check if it's a Taobao short URL first
+            if (preg_match('~(e\.tb\.cn|m\.tb\.cn|s\.click\.taobao\.com|s\.click\.tmall\.com|tb\.cn)~i', $url)) {
+                $resolved = $this->resolveTaobaoShortUrl($url);
+                if ($resolved) {
+                    return $resolved;
+                }
+            }
+            
             $attempts = [
                 ['ua' => 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148', 'scheme' => null],
-                ['ua' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'scheme' => null],
+                ['ua' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36', 'scheme' => null],
+                ['ua' => 'Mozilla/5.0 (Linux; Android 10; SM-G975F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36', 'scheme' => null],
+                ['ua' => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36', 'scheme' => null],
             ];
-            $deadline = microtime(true) + 12; // fail-fast: max 12s overall
+            $deadline = microtime(true) + 15; // fail-fast: max 15s overall
             foreach ($attempts as $conf) {
                 $target = $url;
                 if ($conf['scheme']) {
@@ -191,9 +244,9 @@ class UserAppController extends Controller
                 }
                 $client = new \GuzzleHttp\Client([
                     'allow_redirects' => true,
-                    'timeout' => 7,
-                    'connect_timeout' => 4,
-                    'read_timeout' => 7,
+                    'timeout' => 10,
+                    'connect_timeout' => 5,
+                    'read_timeout' => 10,
                     'verify' => false,
                     'http_errors' => false,
                     'cookies' => new \GuzzleHttp\Cookie\CookieJar(),
@@ -201,7 +254,9 @@ class UserAppController extends Controller
                         'User-Agent' => $conf['ua'],
                         'Accept-Language' => 'zh-CN,zh;q=0.9,en;q=0.8',
                         'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                        'Referer' => 'https://m.1688.com/'
+                        'Referer' => 'https://m.1688.com/',
+                        'Cache-Control' => 'no-cache',
+                        'Pragma' => 'no-cache'
                     ]
                 ]);
                 try {
@@ -228,6 +283,18 @@ class UserAppController extends Controller
                 }
                 if (preg_match('~https?://(?:item\.taobao\.com|detail\.tmall\.com|detail\.1688\.com|m\.1688\.com/offer/|m\.1688\.com/detail/)[^\s\"\']+~i', $body, $m)) {
                     return $m[0];
+                }
+                // Additional patterns for Taobao/Tmall links
+                if (preg_match('~https?://(?:h5\.m\.taobao\.com|h5\.m\.tmall\.com)/awp/core/detail\.htm[^\s\"\']*~i', $body, $m)) {
+                    return $m[0];
+                }
+                // Extract item ID from various patterns
+                if (preg_match('~[?&]id=(\d{10,})~i', $body, $idMatch)) {
+                    if (strpos($body, 'taobao.com') !== false) {
+                        return 'https://item.taobao.com/item.htm?id=' . $idMatch[1];
+                    } elseif (strpos($body, 'tmall.com') !== false) {
+                        return 'https://detail.tmall.com/item.htm?id=' . $idMatch[1];
+                    }
                 }
                 // Last resort: extract offerId pattern from raw
                 if (preg_match("~offerId[=:\\\"'](\\d{6,})~i", $body, $oid)) {

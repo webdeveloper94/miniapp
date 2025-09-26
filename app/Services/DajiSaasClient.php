@@ -26,13 +26,14 @@ class DajiSaasClient
         // Try to respect mini app user's language; fallback to app locale; default 'en'
         $lang = session('telegram_user.language_code') ?? app()->getLocale() ?? 'en';
         $lang = in_array($lang, ['uz','ru','en']) ? $lang : 'en';
-        $locale = $lang === 'ru' ? 'ru_RU' : ($lang === 'uz' ? 'uz_UZ' : 'en_US');
+        
+        // For Taobao API, use more conservative language settings
         return [
-            'language' => $lang,
-            'lang' => $lang,
-            'locale' => $locale,
-            'translate' => true,
-            'needTranslate' => true,
+            'language' => 'en', // Force English to avoid I18N_LANG_NOT_SUPPORTED
+            'lang' => 'en',
+            'locale' => 'en_US',
+            'translate' => false,
+            'needTranslate' => false,
         ];
     }
 
@@ -143,18 +144,35 @@ class DajiSaasClient
     public function taobaoProductDetailByShortUrl(string $url): array
     {
         $endpoint = '/taobao/product/detailByShortUrl';
-        $res = Http::retry(2, 500)->timeout(config('dajisaas.timeout'))
-            ->connectTimeout(config('dajisaas.connect_timeout'))
-            ->withOptions(['verify' => (bool) config('dajisaas.verify_ssl')])
-            ->asJson()->post($this->baseUrl . $endpoint, array_merge([
+        
+        // Try with minimal parameters first to avoid language issues
+        $minimalParams = [
             'appKey' => $this->appKey,
             'appSecret' => $this->appSecret,
             'url' => $url,
-        ], $this->languageOptions()));
+        ];
+        
+        $res = Http::retry(2, 500)->timeout(config('dajisaas.timeout'))
+            ->connectTimeout(config('dajisaas.connect_timeout'))
+            ->withOptions(['verify' => (bool) config('dajisaas.verify_ssl')])
+            ->asJson()->post($this->baseUrl . $endpoint, $minimalParams);
+            
         if ($res->successful()) {
             $json = $res->json();
             return $json['data'] ?? $json ?? [];
         }
+        
+        // If failed, try with language options
+        $res = Http::retry(2, 500)->timeout(config('dajisaas.timeout'))
+            ->connectTimeout(config('dajisaas.connect_timeout'))
+            ->withOptions(['verify' => (bool) config('dajisaas.verify_ssl')])
+            ->asJson()->post($this->baseUrl . $endpoint, array_merge($minimalParams, $this->languageOptions()));
+            
+        if ($res->successful()) {
+            $json = $res->json();
+            return $json['data'] ?? $json ?? [];
+        }
+        
         return [
             '_error' => true,
             'status' => $res->status(),
